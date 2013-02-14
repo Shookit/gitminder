@@ -21,12 +21,15 @@ namespace Ui {
 class MainWindow;
 }
 
+class GitWatcher;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
     
 public:
     explicit MainWindow(QWidget *parent = 0);
+    void updateWatchDirectoriesUI();
     ~MainWindow();
 
 private:
@@ -34,8 +37,8 @@ private:
     QLinkedList<GitWatcher*> gitWatchers;
     void setupSystemTray();
     void setupFileWatcher();
-    void populateOptions();
-    void populateWatchDirectories();
+    void populateOptionsFromSettings();
+    void populateWatchDirectoriesFromSettings();
 
 private slots:
     void systemTrayClickedSlot(QSystemTrayIcon::ActivationReason);

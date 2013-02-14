@@ -17,9 +17,10 @@ MainWindow::MainWindow(QWidget *parent) :
     QCoreApplication::setApplicationName("gitminder");
 
     ui->setupUi(this);
-    setupSystemTray();
     setupFileWatcher();
-
+    setupSystemTray();
+    populateOptionsFromSettings();
+    populateWatchDirectoriesFromSettings();
 }
 
 //MainWindow Destructor
@@ -33,15 +34,12 @@ void MainWindow::setupFileWatcher(){
     QSettings settings;
     int size = settings.beginReadArray("watch_directories");
     git_repository *repo;
-
+    gitWatchers.clear();
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
-        int result = git_repository_open(&repo, settings.value("directory").toString().toStdString().c_str());
-        if (result == 0){
-            //Valid git repo
-            GitWatcher * watcher = new GitWatcher(settings.value("directory").toString());
-            gitWatchers.append(watcher);
-        }
+        git_repository_open(&repo, settings.value("directory").toString().toStdString().c_str());
+        GitWatcher * watcher = new GitWatcher(this, settings.value("directory").toString());
+        gitWatchers.append(watcher);
     }
     settings.endArray();
 }
@@ -62,11 +60,10 @@ void MainWindow::setupSystemTray(){
             this, SLOT(systemTrayClickedSlot(QSystemTrayIcon::ActivationReason)));
 }
 
-void MainWindow::populateWatchDirectories()
+void MainWindow::populateWatchDirectoriesFromSettings()
 {
-    QSettings settings;
-
     ui->treeWidget->clear();
+    QSettings settings;
     int size = settings.beginReadArray("watch_directories");
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
@@ -74,23 +71,12 @@ void MainWindow::populateWatchDirectories()
 
         item->setText(0,settings.value("directory").toString());
 
-        git_repository *repo;
-        int result = git_repository_open(&repo, settings.value("directory").toString().toStdString().c_str());
-
-        if (result != 0){
-            item->setText(1, "invalid");
-        }
-        else {
-            item->setText(1, settings.value("status").toString().toStdString().c_str());
-        }
-
         ui->treeWidget->addTopLevelItem(item);
     }
-    ui->treeWidget->resizeColumnToContents(0);
     settings.endArray();
 }
 
-void MainWindow::populateOptions()
+void MainWindow::populateOptionsFromSettings()
 {
     QSettings settings;
 
@@ -101,6 +87,22 @@ void MainWindow::populateOptions()
     ui->update_notification_frequency->setValue(settings.value("update_notification_frequency").toInt());
 }
 
+void MainWindow::updateWatchDirectoriesUI(){
+    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
+        QTreeWidgetItem * item =  ui->treeWidget->topLevelItem(i);
+        int repoStatus = gitStatus(item->text(0));
+        if (repoStatus == -1){
+            item->setText(1, "Invalid");
+        }else if(repoStatus == 0){
+            item->setText(1, "Clean");
+        }else if(repoStatus == 1){
+            item->setText(1, "Dirty");
+        }
+    }
+    ui->treeWidget->resizeColumnToContents(0);
+}
+
+
 void MainWindow::systemTrayClickedSlot(QSystemTrayIcon::ActivationReason activationType)
 {
     switch(activationType)
@@ -109,8 +111,7 @@ void MainWindow::systemTrayClickedSlot(QSystemTrayIcon::ActivationReason activat
         this->show();
         this->raise();
         this->setFocus();
-        populateOptions();
-        populateWatchDirectories();
+        updateWatchDirectoriesUI();
         break;
     case QSystemTrayIcon::Context:
         trayIcon.contextMenu()->show();
@@ -121,8 +122,6 @@ void MainWindow::systemTrayClickedSlot(QSystemTrayIcon::ActivationReason activat
         break;
     }
 }
-
-
 
 //Click handlers
 void MainWindow::on_remove_clicked()
@@ -145,23 +144,11 @@ void MainWindow::on_browse_clicked()
 void MainWindow::on_add_clicked()
 {
     QTreeWidgetItem * item = new QTreeWidgetItem();
-    QSettings settings;
-
     item->setText(0,ui->lineEdit->text());
-    git_repository *repo;
-    int result = git_repository_open(&repo, ui->lineEdit->text().toStdString().c_str());
-
-    if (result == 0){
-        item->setText(1, "valid");
-    }
-    else {
-        item->setText(1, "invalid");
-    }
-
     ui->treeWidget->addTopLevelItem(item);
-    ui->treeWidget->resizeColumnToContents(0);
-    ui->treeWidget->sortByColumn(0,Qt::AscendingOrder);
     ui->lineEdit->clear();
+    updateWatchDirectoriesUI();
+    setupFileWatcher();
 }
 
 void MainWindow::on_buttonBox_accepted()
@@ -187,5 +174,6 @@ void MainWindow::on_buttonBox_accepted()
 
 void MainWindow::on_buttonBox_rejected()
 {
+    populateWatchDirectoriesFromSettings();
     this->hide();
 }
