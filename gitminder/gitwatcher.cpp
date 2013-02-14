@@ -49,7 +49,9 @@ void GitWatcher::directoryChangedSlot(QString changedFile)
 
 int gitStatus(QString repoPath){
     git_repository * repo;
+
     int openRet = git_repository_open(&repo, repoPath.toStdString().c_str());
+    qDebug() << "openret" << openRet << repoPath;
     if (openRet < 0){
         //Invalid
         return -1;
@@ -57,6 +59,7 @@ int gitStatus(QString repoPath){
 
     int numDirty = 0;
     git_status_foreach(repo, &directoryChangedCallback, &numDirty);
+    qDebug() << "numdirty" << numDirty;
     if (numDirty>0){
         //Dirty
         return 1;
@@ -68,7 +71,8 @@ int gitStatus(QString repoPath){
 }
 
 
-int directoryChangedCallback(const char *, unsigned int, void * numDirty){
+int directoryChangedCallback(const char *fileName, unsigned int, void * numDirty){
+    qDebug() << fileName;
     int *num = (int*) numDirty;
     *num = *num + 1;
     return 0;
