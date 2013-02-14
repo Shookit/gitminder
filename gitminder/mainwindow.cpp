@@ -21,6 +21,8 @@ MainWindow::MainWindow(QWidget *parent) :
     setupSystemTray();
     populateOptionsFromSettings();
     populateWatchDirectoriesFromSettings();
+    updateWatchDirectoriesUI();
+
 }
 
 //MainWindow Destructor

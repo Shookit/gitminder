@@ -71,9 +71,11 @@ int gitStatus(QString repoPath){
 }
 
 
-int directoryChangedCallback(const char *fileName, unsigned int, void * numDirty){
-    qDebug() << fileName;
-    int *num = (int*) numDirty;
-    *num = *num + 1;
+int directoryChangedCallback(const char *fileName, unsigned int git_status_t, void * numDirty){
+    if (git_status_t!=16384){
+        qDebug() << fileName << git_status_t;
+        int *num = (int*) numDirty;
+        *num = *num + 1;
+    }
     return 0;
 }

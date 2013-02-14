@@ -9,7 +9,7 @@
 #include <QMainWindow>
 #include "mainwindow.h"
 
-int directoryChangedCallback(const char *, unsigned int, void *repoPath);
+int directoryChangedCallback(const char *, unsigned int status_flags, void *repoPath);
 int gitStatus(QString repoPath);
 
 class MainWindow;
