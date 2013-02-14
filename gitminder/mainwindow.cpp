@@ -1,9 +1,4 @@
 #include "mainwindow.h"
-#include <git2.h>
-#include <QFuture>
-#include <QThread>
-#include <QtConcurrent/QtConcurrent>
-#include <QFileSystemWatcher>
 
 //Colon after constructor is an 'initialization list'
 //Double colon is scope modifier
@@ -11,25 +6,47 @@
 //Classname::Function is a class function (defined outside of the actual class definition)
 //qDebug() << "hi";
 
-//Constructor
+//MainWindow Constructor
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-    ui->setupUi(this);
-
-    //QFuture<void> checkDirty =  QtConcurrent::run(this, &MainWindow::checkDirty);
-    //QFuture<void> checkRemoteUpdate=  QtConcurrent::run(this, &MainWindow::checkRemoteUpdate);
-
-    QFileSystemWatcher * fileWatcher = new QFileSystemWatcher(this);
-    fileWatcher->addPath("C:\\Users\\Matthew\\Documents\\git\\gitminder");
-    QObject::connect(fileWatcher,SIGNAL(directoryChanged(QString)), this, SLOT(checkDirty(QString)));
-
+    //Used for registry entry locations
     QCoreApplication::setOrganizationName("shookit");
     QCoreApplication::setOrganizationDomain("shookit.com");
     QCoreApplication::setApplicationName("gitminder");
 
-    //Create system tray
+    ui->setupUi(this);
+    setupSystemTray();
+    setupFileWatcher();
+
+}
+
+//MainWindow Destructor
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+
+//Functions
+void MainWindow::setupFileWatcher(){
+    QSettings settings;
+    int size = settings.beginReadArray("watch_directories");
+    git_repository *repo;
+
+    for (int i = 0; i < size; ++i) {
+        settings.setArrayIndex(i);
+        int result = git_repository_open(&repo, settings.value("directory").toString().toStdString().c_str());
+        if (result == 0){
+            //Valid git repo
+            GitWatcher * watcher = new GitWatcher(settings.value("directory").toString());
+            gitWatchers.append(watcher);
+        }
+    }
+    settings.endArray();
+}
+
+void MainWindow::setupSystemTray(){
     QIcon icon("stop.png");
     trayIcon.setIcon(icon);
 
@@ -42,32 +59,13 @@ MainWindow::MainWindow(QWidget *parent) :
 
     trayIcon.show();
     connect(&trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
-            this, SLOT(iconActivated(QSystemTrayIcon::ActivationReason)));
-}
-
-//Destructor
-MainWindow::~MainWindow()
-{
-    delete ui;
-}
-
-void MainWindow::checkDirty(QString changedFile)
-{
-    git_repository *repo;
-    git_repository_open(&repo, changedFile.toStdString().c_str());
-    git_status_foreach(repo, &checkDirtyCallback, NULL);
-}
-
-static int checkDirtyCallback(const char * fileName, unsigned int, void *){
-    qDebug() << fileName;
-    return 0;
+            this, SLOT(systemTrayClickedSlot(QSystemTrayIcon::ActivationReason)));
 }
 
 void MainWindow::populateWatchDirectories()
 {
     QSettings settings;
 
-    //Populate watch directories
     ui->treeWidget->clear();
     int size = settings.beginReadArray("watch_directories");
     for (int i = 0; i < size; ++i) {
@@ -79,11 +77,11 @@ void MainWindow::populateWatchDirectories()
         git_repository *repo;
         int result = git_repository_open(&repo, settings.value("directory").toString().toStdString().c_str());
 
-        if (result == 0){
-            item->setText(1, "Valid");
+        if (result != 0){
+            item->setText(1, "invalid");
         }
         else {
-            item->setText(1, "Invalid");
+            item->setText(1, settings.value("status").toString().toStdString().c_str());
         }
 
         ui->treeWidget->addTopLevelItem(item);
@@ -94,7 +92,6 @@ void MainWindow::populateWatchDirectories()
 
 void MainWindow::populateOptions()
 {
-    //Populate options page
     QSettings settings;
 
     ui->commit_reminder->setChecked(settings.value("commit_reminder").toBool());
@@ -104,7 +101,7 @@ void MainWindow::populateOptions()
     ui->update_notification_frequency->setValue(settings.value("update_notification_frequency").toInt());
 }
 
-void MainWindow::iconActivated(QSystemTrayIcon::ActivationReason activationType)
+void MainWindow::systemTrayClickedSlot(QSystemTrayIcon::ActivationReason activationType)
 {
     switch(activationType)
     {
@@ -125,6 +122,9 @@ void MainWindow::iconActivated(QSystemTrayIcon::ActivationReason activationType)
     }
 }
 
+
+
+//Click handlers
 void MainWindow::on_remove_clicked()
 {
     qDeleteAll(ui->treeWidget->selectedItems());
@@ -138,20 +138,24 @@ void MainWindow::on_browse_clicked()
     for (int i=0; i<dialog.selectedFiles().count(); i++){
         ui->lineEdit->setText(dialog.selectedFiles()[i]);
     }
+    this->raise();
+    this->setFocus();
 }
 
 void MainWindow::on_add_clicked()
 {
     QTreeWidgetItem * item = new QTreeWidgetItem();
+    QSettings settings;
+
     item->setText(0,ui->lineEdit->text());
     git_repository *repo;
     int result = git_repository_open(&repo, ui->lineEdit->text().toStdString().c_str());
 
     if (result == 0){
-        item->setText(1, "Valid");
+        item->setText(1, "valid");
     }
     else {
-        item->setText(1, "Invalid");
+        item->setText(1, "invalid");
     }
 
     ui->treeWidget->addTopLevelItem(item);

@@ -3,19 +3,23 @@
 
 #include <QMainWindow>
 #include <QSystemTrayIcon>
-#include "ui_mainwindow.h"
 #include <QSettings>
 #include <QFileDialog>
 #include <QDebug>
 #include <QSystemTrayIcon>
 #include <QMenu>
+#include <QFuture>
+#include <QThread>
+#include <QtConcurrent/QtConcurrent>
+#include <QLinkedList>
+#include <QFileSystemWatcher>
+#include <git2.h>
+#include "ui_mainwindow.h"
+#include "gitwatcher.h"
 
 namespace Ui {
 class MainWindow;
 }
-
-static int checkDirtyCallback(const char *, unsigned int, void *);
-
 
 class MainWindow : public QMainWindow
 {
@@ -27,12 +31,14 @@ public:
 
 private:
     QSystemTrayIcon trayIcon;
-    void MainWindow::populateOptions();
-    void MainWindow::populateWatchDirectories();
+    QLinkedList<GitWatcher*> gitWatchers;
+    void setupSystemTray();
+    void setupFileWatcher();
+    void populateOptions();
+    void populateWatchDirectories();
 
 private slots:
-    void checkDirty(QString changedFile);
-    void iconActivated(QSystemTrayIcon::ActivationReason);
+    void systemTrayClickedSlot(QSystemTrayIcon::ActivationReason);
     void on_remove_clicked();
     void on_buttonBox_accepted();
     void on_buttonBox_rejected();

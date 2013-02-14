@@ -12,9 +12,11 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    gitwatcher.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    gitwatcher.h
 
 FORMS    += mainwindow.ui
 
