@@ -5,7 +5,6 @@
 #-------------------------------------------------
 
 QT       += core gui
-
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = gitminder
@@ -18,3 +17,15 @@ SOURCES += main.cpp\
 HEADERS  += mainwindow.h
 
 FORMS    += mainwindow.ui
+
+OTHER_FILES += \
+
+RESOURCES +=
+
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/libgit2/lib/ -lgit2
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/libgit2/lib/ -lgit2d
+else:unix: LIBS += -L$$PWD/libgit2/lib/ -lgit2
+
+INCLUDEPATH += $$PWD/libgit2/include
+DEPENDPATH += $$PWD/libgit2/include
