@@ -17,13 +17,13 @@ MainWindow::MainWindow(QWidget *parent) :
     QCoreApplication::setApplicationName("gitminder");
 
     ui->setupUi(this);
-    setupFileWatcher();
     setupSystemTray();
     populateOptionsFromSettings();
-    populateWatchDirectoriesFromSettings();
-    updateWatchDirectoriesUI();
-
+    getWatchDirectoryNamesFromSettings();
+    updateAllWatchDirectoryStatus();
+    setupFileWatcher();
 }
+
 
 //MainWindow Destructor
 MainWindow::~MainWindow()
@@ -31,20 +31,20 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+
 //Functions
 void MainWindow::setupFileWatcher(){
-    QSettings settings;
-    int size = settings.beginReadArray("watch_directories");
     git_repository *repo;
     gitWatchers.clear();
-    for (int i = 0; i < size; ++i) {
-        settings.setArrayIndex(i);
-        git_repository_open(&repo, settings.value("directory").toString().toStdString().c_str());
-        GitWatcher * watcher = new GitWatcher(this, settings.value("directory").toString());
+
+    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
+        QTreeWidgetItem * item =  ui->treeWidget->topLevelItem(i);
+        GitWatcher * watcher = new GitWatcher(this,item->text(0).toStdString().c_str());
         gitWatchers.append(watcher);
     }
-    settings.endArray();
+    ui->treeWidget->resizeColumnToContents(0);
 }
+
 
 void MainWindow::setupSystemTray(){
     QIcon icon("stop.png");
@@ -62,7 +62,20 @@ void MainWindow::setupSystemTray(){
             this, SLOT(systemTrayClickedSlot(QSystemTrayIcon::ActivationReason)));
 }
 
-void MainWindow::populateWatchDirectoriesFromSettings()
+
+void MainWindow::populateOptionsFromSettings()
+{
+    QSettings settings;
+
+    ui->commit_reminder->setChecked(settings.value("commit_reminder").toBool());
+    ui->commit_reminder_time->setValue(settings.value("commit_reminder_time").toInt());
+
+    ui->update_notification->setChecked(settings.value("update_notification").toBool());
+    ui->update_notification_frequency->setValue(settings.value("update_notification_frequency").toInt());
+}
+
+
+void MainWindow::getWatchDirectoryNamesFromSettings()
 {
     ui->treeWidget->clear();
     QSettings settings;
@@ -78,30 +91,55 @@ void MainWindow::populateWatchDirectoriesFromSettings()
     settings.endArray();
 }
 
-void MainWindow::populateOptionsFromSettings()
-{
-    QSettings settings;
 
-    ui->commit_reminder->setChecked(settings.value("commit_reminder").toBool());
-    ui->commit_reminder_time->setValue(settings.value("commit_reminder_time").toInt());
-
-    ui->update_notification->setChecked(settings.value("update_notification").toBool());
-    ui->update_notification_frequency->setValue(settings.value("update_notification_frequency").toInt());
-}
-
-void MainWindow::updateWatchDirectoriesUI(){
+void MainWindow::updateAllWatchDirectoryStatus(){
     for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
-        QTreeWidgetItem * item =  ui->treeWidget->topLevelItem(i);
-        int repoStatus = gitRecursiveStatus(item->text(0));
-        if (repoStatus == -1){
-            item->setText(1, "Invalid");
-        }else if(repoStatus == 0){
-            item->setText(1, "Clean");
-        }else if(repoStatus == 1){
-            item->setText(1, "Dirty");
-        }
+        QString itemText =  ui->treeWidget->topLevelItem(i)->text(0);
+        updateWatchDirectoryStatus(itemText);
     }
     ui->treeWidget->resizeColumnToContents(0);
+}
+
+
+void MainWindow::updateWatchDirectoryStatus(QString repoPath){
+    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
+        QTreeWidgetItem * item = ui->treeWidget->topLevelItem(i);
+
+        if (repoPath == item->text(0)){
+            git_repository * repo;
+            git_reference * head;
+            git_repository_open(&repo, item->text(0).toStdString().c_str());
+            git_repository_head(&head, repo);
+
+            git_oid * oid;
+            char * oid_str = new char[500];
+            git_reference_name_to_id(oid, repo, "HEAD");
+            git_oid_tostr(oid_str, 500, oid);
+            qDebug() << oid_str;
+
+            int repoStatus = gitRecursiveStatus(item->text(0));
+
+            QSettings settings;
+            int size = settings.beginReadArray("watch_directories");
+            for (int i = 0; i < size; ++i) {
+                settings.setArrayIndex(i);
+                if (settings.value("directory").toString() == repoPath){
+                    break;
+                }
+            }
+            settings.endArray();
+
+            if (repoStatus == -1){
+                item->setText(1, "Invalid");
+            }else if(repoStatus == 0){
+                item->setText(1, "Clean");
+                //settings.setValue("commit");
+            }else if(repoStatus == 1){
+                item->setText(1, "Dirty");
+            }
+        }
+
+    }
 }
 
 
@@ -113,7 +151,6 @@ void MainWindow::systemTrayClickedSlot(QSystemTrayIcon::ActivationReason activat
         this->show();
         this->raise();
         this->setFocus();
-        updateWatchDirectoriesUI();
         break;
     case QSystemTrayIcon::Context:
         trayIcon.contextMenu()->show();
@@ -125,11 +162,13 @@ void MainWindow::systemTrayClickedSlot(QSystemTrayIcon::ActivationReason activat
     }
 }
 
+
 //Click handlers
 void MainWindow::on_remove_clicked()
 {
     qDeleteAll(ui->treeWidget->selectedItems());
 }
+
 
 void MainWindow::on_browse_clicked()
 {
@@ -143,15 +182,16 @@ void MainWindow::on_browse_clicked()
     this->setFocus();
 }
 
+
 void MainWindow::on_add_clicked()
 {
     QTreeWidgetItem * item = new QTreeWidgetItem();
     item->setText(0,ui->lineEdit->text());
     ui->treeWidget->addTopLevelItem(item);
+    updateWatchDirectoryStatus(ui->lineEdit->text());
     ui->lineEdit->clear();
-    updateWatchDirectoriesUI();
-    setupFileWatcher();
 }
+
 
 void MainWindow::on_buttonBox_accepted()
 {
@@ -174,8 +214,8 @@ void MainWindow::on_buttonBox_accepted()
     this->hide();
 }
 
+
 void MainWindow::on_buttonBox_rejected()
 {
-    populateWatchDirectoriesFromSettings();
     this->hide();
 }

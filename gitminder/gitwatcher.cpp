@@ -7,19 +7,22 @@
 GitWatcher::GitWatcher(MainWindow * window, QString repoPath){
     this->repoPath = repoPath;
     this->window = window;
+    this->timer = new QTimer(this);
+    this->timer->setSingleShot(true);
     git_repository_open(&gitRepo, repoPath.toStdString().c_str());
     dirWatcher.addPath(repoPath);
     dirWatcher.addPaths(recursiveDirectorySearch(repoPath));
 
     QObject::connect(&dirWatcher,SIGNAL(directoryChanged(QString)), this, SLOT(directoryChangedSlot(QString)));
-
-    //Separate function (class) w/ timer, only do directories, just look at files in that level directory for new/changed using the git functions
+    QObject::connect(timer, SIGNAL(timeout()), this, SLOT(timeout()));
 }
+
 
 //Destructor
 GitWatcher::~GitWatcher(){
 
 }
+
 
 //Functions
 QStringList GitWatcher::recursiveDirectorySearch(QString folder) {
@@ -32,10 +35,16 @@ QStringList GitWatcher::recursiveDirectorySearch(QString folder) {
     return fileList;
 } 
 
+
+void GitWatcher::timeout(){
+    this->window->updateWatchDirectoryStatus(this->repoPath);
+}
+
+
 void GitWatcher::directoryChangedSlot(QString changedDirectory)
 {
-    gitFlatStatus(this->repoPath, changedDirectory);
-    //window->updateWatchDirectoriesUI();
+    changedDirectory = changedDirectory;
+    timer->start(5000);
 }
 
 
@@ -53,11 +62,11 @@ int gitFlatStatus(QString repoPath, QString changedDirectory){
     while (dirIt.hasNext()) {
         dirIt.next();
         git_status_file(&status_flags, repo, dirIt.filePath().toStdString().c_str());
-        //qDebug() << dirIt.filePath().toStdString().c_str() << status_flags;
     }
 
     return 0;
 }
+
 
 int gitRecursiveStatus(QString repoPath){
     git_repository * repo;

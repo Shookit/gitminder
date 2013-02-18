@@ -29,8 +29,9 @@ class MainWindow : public QMainWindow
     
 public:
     explicit MainWindow(QWidget *parent = 0);
-    void updateWatchDirectoriesUI();
     ~MainWindow();
+    void updateWatchDirectoryStatus(QString repoPath);
+
 
 private:
     QSystemTrayIcon trayIcon;
@@ -38,7 +39,10 @@ private:
     void setupSystemTray();
     void setupFileWatcher();
     void populateOptionsFromSettings();
-    void populateWatchDirectoriesFromSettings();
+    void getWatchDirectoryNamesFromSettings();
+    void updateAllWatchDirectoryStatus();
+
+public slots:
 
 private slots:
     void systemTrayClickedSlot(QSystemTrayIcon::ActivationReason);

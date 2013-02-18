@@ -26,6 +26,7 @@ public:
 private:
     MainWindow * window;
     QString repoPath;
+    QTimer *timer;
     QFileSystemWatcher fileWatcher;
     QFileSystemWatcher dirWatcher;
     git_repository * gitRepo;
@@ -34,6 +35,8 @@ private:
     QStringList recursiveDirectorySearch(QString folder);
 
 private slots:
+    void timeout();
     void directoryChangedSlot(QString changedFile);
+
 };
 #endif
