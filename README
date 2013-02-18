@@ -1,1 +1,10 @@
- 
+To compile libgit, make sure you use the correct debug/release, and DO NOT use stdcall in the cmake configuration.
+Make sure you use the same compiler as the one Qt is using.
+
+Open the VS2010 Command Prompt (not a regular cmd prompt or the Windows SDK one!)
+cd into the libgit2 directory
+mkdir build && cd build
+cmake .. or cmake-gui ..
+cmake --build .
+ctest -V
+cmake --build . --target install 

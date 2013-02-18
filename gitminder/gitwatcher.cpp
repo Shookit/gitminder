@@ -8,9 +8,12 @@ GitWatcher::GitWatcher(MainWindow * window, QString repoPath){
     this->repoPath = repoPath;
     this->window = window;
     git_repository_open(&gitRepo, repoPath.toStdString().c_str());
-    fileWatcher.addPaths(recursiveDirectorySearch(repoPath));
-    QObject::connect(&fileWatcher,SIGNAL(fileChanged(QString)), this, SLOT(directoryChangedSlot(QString)));
-    QObject::connect(&fileWatcher,SIGNAL(directoryChanged(QString)), this, SLOT(directoryChangedSlot(QString)));
+    dirWatcher.addPath(repoPath);
+    dirWatcher.addPaths(recursiveDirectorySearch(repoPath));
+
+    QObject::connect(&dirWatcher,SIGNAL(directoryChanged(QString)), this, SLOT(directoryChangedSlot(QString)));
+
+    //Separate function (class) w/ timer, only do directories, just look at files in that level directory for new/changed using the git functions
 }
 
 //Destructor
@@ -19,39 +22,47 @@ GitWatcher::~GitWatcher(){
 }
 
 //Functions
-QStringList GitWatcher::recursiveFileSearch(QString folder) {
-    QStringList fileList;
-    QDirIterator dirIt(folder,QDirIterator::Subdirectories);
-    while (dirIt.hasNext()) {
-        dirIt.next();
-        if (QFileInfo(dirIt.filePath()).isFile())
-            fileList.append(dirIt.filePath());
-    }
-    return fileList;
-}
-
 QStringList GitWatcher::recursiveDirectorySearch(QString folder) {
     QStringList fileList;
-    QDirIterator dirIt(folder,QDirIterator::Subdirectories);
+    QDirIterator dirIt(folder, QDir::NoDotAndDotDot|QDir::Dirs , QDirIterator::Subdirectories );
     while (dirIt.hasNext()) {
         dirIt.next();
         fileList.append(dirIt.filePath());
     }
     return fileList;
-}
+} 
 
-
-void GitWatcher::directoryChangedSlot(QString changedFile)
+void GitWatcher::directoryChangedSlot(QString changedDirectory)
 {
-    window->updateWatchDirectoriesUI();
+    gitFlatStatus(this->repoPath, changedDirectory);
+    //window->updateWatchDirectoriesUI();
 }
 
 
-int gitStatus(QString repoPath){
+int gitFlatStatus(QString repoPath, QString changedDirectory){
     git_repository * repo;
 
     int openRet = git_repository_open(&repo, repoPath.toStdString().c_str());
-    qDebug() << "openret" << openRet << repoPath;
+    if (openRet < 0){
+        //Invalid
+        return -1;
+    }
+
+    QDirIterator dirIt(changedDirectory, QDir::NoDotAndDotDot|QDir::Files);
+    unsigned int status_flags;
+    while (dirIt.hasNext()) {
+        dirIt.next();
+        git_status_file(&status_flags, repo, dirIt.filePath().toStdString().c_str());
+        //qDebug() << dirIt.filePath().toStdString().c_str() << status_flags;
+    }
+
+    return 0;
+}
+
+int gitRecursiveStatus(QString repoPath){
+    git_repository * repo;
+
+    int openRet = git_repository_open(&repo, repoPath.toStdString().c_str());
     if (openRet < 0){
         //Invalid
         return -1;
@@ -59,7 +70,6 @@ int gitStatus(QString repoPath){
 
     int numDirty = 0;
     git_status_foreach(repo, &directoryChangedCallback, &numDirty);
-    qDebug() << "numdirty" << numDirty;
     if (numDirty>0){
         //Dirty
         return 1;
@@ -72,10 +82,43 @@ int gitStatus(QString repoPath){
 
 
 int directoryChangedCallback(const char *fileName, unsigned int git_status_t, void * numDirty){
-    if (git_status_t!=16384){
-        qDebug() << fileName << git_status_t;
+    /* A combination of these values will be returned to indicate the status of
+    * a file.  Status compares the working directory, the index, and the
+    * current HEAD of the repository.  The `GIT_STATUS_INDEX` set of flags
+    * represents the status of file in the index relative to the HEAD, and the
+    * `GIT_STATUS_WT` set of flags represent the status of the file in the
+    * working directory relative to the index.*/
+
+
+    fileName=fileName;
+
+    if(git_status_t!=GIT_STATUS_IGNORED){
         int *num = (int*) numDirty;
         *num = *num + 1;
+
+        if (git_status_t == (1u << 0)){
+            qDebug() << "none"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_INDEX_NEW){
+            qDebug() << "GIT_STATUS_INDEX_NEW"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_INDEX_MODIFIED){
+            qDebug() << "GIT_STATUS_INDEX_MODIFIED"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_INDEX_DELETED){
+            qDebug() << "GIT_STATUS_INDEX_DELETED"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_INDEX_RENAMED){
+            qDebug() << "GIT_STATUS_INDEX_RENAMED"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_INDEX_TYPECHANGE){
+            qDebug() << "GIT_STATUS_INDEX_TYPECHANGE"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_WT_NEW){
+            qDebug() << "GIT_STATUS_WT_NEW"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_WT_MODIFIED){
+            qDebug() << "GIT_STATUS_WT_MODIFIED"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_WT_DELETED){
+            qDebug() << "GIT_STATUS_WT_DELETED"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_WT_TYPECHANGE){
+            qDebug() << "GIT_STATUS_WT_TYPECHANGE"  << git_status_t << fileName ;
+        }else if (git_status_t == GIT_STATUS_IGNORED){
+            qDebug() << "GIT_STATUS_IGNORED"  << git_status_t << fileName ;
+        }
     }
     return 0;
 }

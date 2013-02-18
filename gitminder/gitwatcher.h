@@ -10,7 +10,8 @@
 #include "mainwindow.h"
 
 int directoryChangedCallback(const char *, unsigned int status_flags, void *repoPath);
-int gitStatus(QString repoPath);
+int gitRecursiveStatus(QString repoPath);
+int gitFlatStatus(QString repoPath, QString changedDirectory);
 
 class MainWindow;
 
@@ -26,6 +27,7 @@ private:
     MainWindow * window;
     QString repoPath;
     QFileSystemWatcher fileWatcher;
+    QFileSystemWatcher dirWatcher;
     git_repository * gitRepo;
 
     QStringList recursiveFileSearch(QString folder);

@@ -92,7 +92,7 @@ void MainWindow::populateOptionsFromSettings()
 void MainWindow::updateWatchDirectoriesUI(){
     for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
         QTreeWidgetItem * item =  ui->treeWidget->topLevelItem(i);
-        int repoStatus = gitStatus(item->text(0));
+        int repoStatus = gitRecursiveStatus(item->text(0));
         if (repoStatus == -1){
             item->setText(1, "Invalid");
         }else if(repoStatus == 0){
