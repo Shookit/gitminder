@@ -17,12 +17,14 @@ NotifyTimer::NotifyTimer(QSystemTrayIcon *trayIcon, QString repoPath, QString ti
     }
 }
 
+
 void NotifyTimer::startTimer(int num_seconds){
     this->timer = new QTimer();
     this->timer->setSingleShot(true);
     QObject::connect(timer, SIGNAL(timeout()), this, SLOT(timeout()));
-    timer->start(num_seconds);
+    timer->start(num_seconds*1000);
 }
+
 
 void NotifyTimer::timeout(){
     showMessage();
@@ -32,6 +34,6 @@ void NotifyTimer::timeout(){
 void NotifyTimer::showMessage(){
     QSettings settings;
 
-    this->trayIcon->showMessage(repoPath, "This repository hasn't been committed in over " + settings.value("commit_reminder_time").toString() + " minutes.\nYou should do that soon.");
+    this->trayIcon->showMessage(repoPath, "This repository hasn't been committed in over " + settings.value("commit_reminder_time").toString() + " minutes.");
     startTimer(5*60);
 }
