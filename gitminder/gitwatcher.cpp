@@ -10,8 +10,11 @@ GitWatcher::GitWatcher(MainWindow * window, QString repoPath){
     this->timer = new QTimer(this);
     this->timer->setSingleShot(true);
     git_repository_open(&gitRepo, repoPath.toStdString().c_str());
+
     dirWatcher.addPath(repoPath);
-    dirWatcher.addPaths(recursiveDirectorySearch(repoPath));
+    if (recursiveDirectorySearch(repoPath).length() > 0){
+        dirWatcher.addPaths(recursiveDirectorySearch(repoPath));
+    }
 
     QObject::connect(&dirWatcher,SIGNAL(directoryChanged(QString)), this, SLOT(directoryChangedSlot(QString)));
     QObject::connect(timer, SIGNAL(timeout()), this, SLOT(timeout()));

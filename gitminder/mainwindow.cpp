@@ -16,7 +16,7 @@ MainWindow::MainWindow(QWidget *parent) :
     getWatchDirectoryNamesFromSettings();
     updateAllWatchDirectoryStatus();
     setupFileWatcher();
-    setupNotifyTimers();
+    //setupNotifyTimers(); being called in updateallwatchdirectorystatus() (will move to one slot later)
 }
 
 
@@ -107,6 +107,7 @@ void MainWindow::updateAllWatchDirectoryStatus(){
         updateWatchDirectoryStatus(itemText);
     }
     ui->treeWidget->resizeColumnToContents(0);
+    setupNotifyTimers();
 }
 
 
@@ -175,7 +176,6 @@ void MainWindow::updateWatchDirectoryStatus(QString repoPath){
             settings.endArray();
         }
     }
-    setupNotifyTimers();
 }
 
 

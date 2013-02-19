@@ -33,7 +33,7 @@ void NotifyTimer::timeout(){
 
 void NotifyTimer::showMessage(){
     QSettings settings;
-
+    qDebug() << "message popped up";
     this->trayIcon->showMessage(repoPath, "This repository hasn't been committed in over " + settings.value("commit_reminder_time").toString() + " minutes.");
     startTimer(5*60);
 }
