@@ -33,18 +33,17 @@ public:
     ~MainWindow();
     void updateWatchDirectoryStatus(QString repoPath);
 
-
 private:
-    QSystemTrayIcon trayIcon;
     QLinkedList<GitWatcher*> gitWatchers;
     QLinkedList<NotifyTimer*> notifyTimers;
+    QSystemTrayIcon trayIcon;
+
     void setupSystemTray();
     void setupFileWatcher();
     void populateOptionsFromSettings();
     void getWatchDirectoryNamesFromSettings();
     void updateAllWatchDirectoryStatus();
     void setupNotifyTimers();
-
 
 public slots:
 

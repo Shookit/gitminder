@@ -1,11 +1,5 @@
 #include "mainwindow.h"
 
-//Colon after constructor is an 'initialization list'
-//Double colon is scope modifier
-//Classname::Classname is constructor
-//Classname::Function is a class function (defined outside of the actual class definition)
-//qDebug() << "hi";
-
 //MainWindow Constructor
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -53,7 +47,7 @@ void MainWindow::setupNotifyTimers(){
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
         if (settings.value("status").toString() == "dirty"){
-            NotifyTimer * timer = new NotifyTimer(settings.value("directory").toString(), settings.value("timestamp").toString());
+            NotifyTimer * timer = new NotifyTimer(&trayIcon, settings.value("directory").toString(), settings.value("timestamp").toString());
             notifyTimers.append(timer);
         }
     }
@@ -160,7 +154,6 @@ void MainWindow::updateWatchDirectoryStatus(QString repoPath){
                 //If dirty
                 if (strcmp(settings.value("commit").toString().toStdString().c_str(), commit_id)){
                     //If different commit ID
-                    qDebug() << settings.value("commit").toString().toStdString().c_str() << commit_id;
                     settings.setValue("commit", commit_id);
                     settings.setValue("timestamp", QDateTime::currentMSecsSinceEpoch()/1000);
                 }
@@ -168,12 +161,9 @@ void MainWindow::updateWatchDirectoryStatus(QString repoPath){
                     //If same commit ID
                     if (settings.value("status").toString().compare("dirty") == 0){
                         //If previously dirty:
-                        qDebug() << "prevdirty";
                     }
                     else if (settings.value("status").toString().compare("clean") == 0){
                         //If previously clean:
-                        qDebug() << "prevclean";
-
                         settings.setValue("commit", commit_id);
                         settings.setValue("timestamp", QDateTime::currentMSecsSinceEpoch()/1000);
                     }
