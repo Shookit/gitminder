@@ -175,6 +175,7 @@ void MainWindow::updateWatchDirectoryStatus(QString repoPath){
             settings.endArray();
         }
     }
+    setupNotifyTimers();
 }
 
 

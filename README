@@ -7,12 +7,12 @@ gitminder requirements:
 	-libgit2
 	
 Known issues/future improvements:
-	-gitminder leaks memory all over the place (intentionally! I'm still getting a handle on how Qt manages its objects, so this will be fixed in the next release).
+	-gitminder leaks memory all over the place (intentionally! I'm still getting a handle on how Qt manages its objects, so this will be fixed with top priority).
 	-Contextual system tray icon
+	-Performance improvements so all files aren't scanned upon a status change.
 	-Recursively add git directories to watchlist
-	-Some UI code needs to be separated from the business code
+	-Some UI code needs to be separated from the business code (slots aren't being used as effectively as possible)
 	-gitminder currently can't check if the remote repo has been updated; this will be implemented eventually, but most of my repos are single-user, so I'm holding off on this one for a bit.
-	-Include binary releases on github
 
 libgit2:
 	-To compile libgit, make sure you use the correct debug/release, and DO NOT use stdcall in the cmake configuration.
