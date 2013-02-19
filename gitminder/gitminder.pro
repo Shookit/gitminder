@@ -13,10 +13,12 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    gitwatcher.cpp
+    gitwatcher.cpp \
+    notifytimer.cpp
 
 HEADERS  += mainwindow.h \
-    gitwatcher.h
+    gitwatcher.h \
+    notifytimer.h
 
 FORMS    += mainwindow.ui
 
@@ -26,7 +28,7 @@ RESOURCES +=
 
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/libgit2/lib/ -lgit2
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/libgit2/lib/ -lgit2d
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/libgit2/lib/ -lgit2
 else:unix: LIBS += -L$$PWD/libgit2/lib/ -lgit2
 
 INCLUDEPATH += $$PWD/libgit2/include

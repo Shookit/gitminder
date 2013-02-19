@@ -16,6 +16,7 @@
 #include <git2.h>
 #include "ui_mainwindow.h"
 #include "gitwatcher.h"
+#include "notifytimer.h"
 
 namespace Ui {
 class MainWindow;
@@ -36,11 +37,14 @@ public:
 private:
     QSystemTrayIcon trayIcon;
     QLinkedList<GitWatcher*> gitWatchers;
+    QLinkedList<NotifyTimer*> notifyTimers;
     void setupSystemTray();
     void setupFileWatcher();
     void populateOptionsFromSettings();
     void getWatchDirectoryNamesFromSettings();
     void updateAllWatchDirectoryStatus();
+    void setupNotifyTimers();
+
 
 public slots:
 

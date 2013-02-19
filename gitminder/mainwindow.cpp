@@ -22,6 +22,7 @@ MainWindow::MainWindow(QWidget *parent) :
     getWatchDirectoryNamesFromSettings();
     updateAllWatchDirectoryStatus();
     setupFileWatcher();
+    setupNotifyTimers();
 }
 
 
@@ -34,7 +35,6 @@ MainWindow::~MainWindow()
 
 //Functions
 void MainWindow::setupFileWatcher(){
-    git_repository *repo;
     gitWatchers.clear();
 
     for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
@@ -43,6 +43,21 @@ void MainWindow::setupFileWatcher(){
         gitWatchers.append(watcher);
     }
     ui->treeWidget->resizeColumnToContents(0);
+}
+
+
+void MainWindow::setupNotifyTimers(){
+    notifyTimers.clear();
+    QSettings settings;
+    int size = settings.beginReadArray("watch_directories");
+    for (int i = 0; i < size; ++i) {
+        settings.setArrayIndex(i);
+        if (settings.value("status").toString() == "dirty"){
+            NotifyTimer * timer = new NotifyTimer(settings.value("directory").toString(), settings.value("timestamp").toString());
+            notifyTimers.append(timer);
+        }
+    }
+    settings.endArray();
 }
 
 
@@ -106,18 +121,22 @@ void MainWindow::updateWatchDirectoryStatus(QString repoPath){
         QTreeWidgetItem * item = ui->treeWidget->topLevelItem(i);
 
         if (repoPath == item->text(0)){
+            git_revwalk * walk;
             git_repository * repo;
-            git_reference * head;
+            git_oid oid;
+
             git_repository_open(&repo, item->text(0).toStdString().c_str());
-            git_repository_head(&head, repo);
+            git_revwalk_new(&walk, repo);
+            git_revwalk_push_head(walk);
+            git_revwalk_next(&oid, walk);
 
-            git_oid * oid;
-            char * oid_str = new char[500];
-            git_reference_name_to_id(oid, repo, "HEAD");
-            git_oid_tostr(oid_str, 500, oid);
-            qDebug() << oid_str;
+            char * commit_id = new char[41]; //Commit ID
+            git_oid_tostr(commit_id, 41, &oid);
 
-            int repoStatus = gitRecursiveStatus(item->text(0));
+            //git_commit * commit;
+            //git_commit_lookup(&commit, repo, &oid);
+            //git_time_t tyme;
+            //tyme = git_commit_time(commit);
 
             QSettings settings;
             int size = settings.beginReadArray("watch_directories");
@@ -127,18 +146,44 @@ void MainWindow::updateWatchDirectoryStatus(QString repoPath){
                     break;
                 }
             }
-            settings.endArray();
+
+            int repoStatus = gitRecursiveStatus(item->text(0));
 
             if (repoStatus == -1){
                 item->setText(1, "Invalid");
             }else if(repoStatus == 0){
+                //If clean
                 item->setText(1, "Clean");
-                //settings.setValue("commit");
+                settings.setValue("status", "clean");
+                settings.setValue("commit", commit_id);
             }else if(repoStatus == 1){
-                item->setText(1, "Dirty");
-            }
-        }
+                //If dirty
+                if (strcmp(settings.value("commit").toString().toStdString().c_str(), commit_id)){
+                    //If different commit ID
+                    qDebug() << settings.value("commit").toString().toStdString().c_str() << commit_id;
+                    settings.setValue("commit", commit_id);
+                    settings.setValue("timestamp", QDateTime::currentMSecsSinceEpoch()/1000);
+                }
+                else if (!strcmp(settings.value("commit").toString().toStdString().c_str(), commit_id)){
+                    //If same commit ID
+                    if (settings.value("status").toString().compare("dirty") == 0){
+                        //If previously dirty:
+                        qDebug() << "prevdirty";
+                    }
+                    else if (settings.value("status").toString().compare("clean") == 0){
+                        //If previously clean:
+                        qDebug() << "prevclean";
 
+                        settings.setValue("commit", commit_id);
+                        settings.setValue("timestamp", QDateTime::currentMSecsSinceEpoch()/1000);
+                    }
+                }
+                settings.setValue("status", "dirty");
+                item->setText(1, "Dirty");
+
+            }
+            settings.endArray();
+        }
     }
 }
 
