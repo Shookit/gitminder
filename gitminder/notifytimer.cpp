@@ -25,7 +25,7 @@ void NotifyTimer::startTimer(int num_seconds){
 }
 
 void NotifyTimer::timeout(){
-
+    showMessage();
 }
 
 
