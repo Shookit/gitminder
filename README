@@ -9,6 +9,7 @@ gitminder requirements:
 Known issues/future improvements:
 	-gitminder leaks memory all over the place (intentionally! I'm still getting a handle on how Qt manages its objects, so this will be fixed with top priority).
 	-Contextual system tray icon
+	-Sorting destroys previous settings information
 	-Performance improvements so all files aren't scanned upon a status change.
 	-Recursively add git directories to watchlist
 	-Some UI code needs to be separated from the business code (slots aren't being used as effectively as possible)

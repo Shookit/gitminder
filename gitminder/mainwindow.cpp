@@ -221,6 +221,7 @@ void MainWindow::on_browse_clicked()
 
 void MainWindow::on_add_clicked()
 {
+
     QTreeWidgetItem * item = new QTreeWidgetItem();
     item->setText(0,ui->lineEdit->text());
     ui->treeWidget->addTopLevelItem(item);
@@ -233,6 +234,7 @@ void MainWindow::on_buttonBox_accepted()
 {
     QSettings settings;
     //Watch directories
+    ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
     settings.beginWriteArray("watch_directories");
     for (int i=0; i < ui->treeWidget->topLevelItemCount(); ++i){
         settings.setArrayIndex(i);
@@ -248,6 +250,9 @@ void MainWindow::on_buttonBox_accepted()
 
     //Hide
     this->hide();
+
+    setupNotifyTimers();
+    setupFileWatcher();
 }
 
 
