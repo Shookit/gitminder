@@ -56,7 +56,8 @@ void MainWindow::setupNotifyTimers(){
 
 
 void MainWindow::setupSystemTray(){
-    QIcon icon("stop.png");
+    QIcon icon(":/images/stop.png");
+
     trayIcon.setIcon(icon);
 
     QAction * openAction = new QAction(tr("Open"), this);

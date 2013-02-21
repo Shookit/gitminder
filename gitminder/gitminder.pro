@@ -10,7 +10,6 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = gitminder
 TEMPLATE = app
 
-
 SOURCES += main.cpp\
         mainwindow.cpp \
     gitwatcher.cpp \
@@ -24,7 +23,8 @@ FORMS    += mainwindow.ui
 
 OTHER_FILES += \
 
-RESOURCES +=
+RESOURCES += \
+    resource.qrc
 
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/libgit2/lib/ -lgit2
