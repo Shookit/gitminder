@@ -46,7 +46,6 @@ void GitWatcher::timeout(){
 
 void GitWatcher::directoryChangedSlot(QString changedDirectory)
 {
-    changedDirectory = changedDirectory;
     timer->start(5000);
 }
 
@@ -100,9 +99,6 @@ int directoryChangedCallback(const char *fileName, unsigned int git_status_t, vo
     * represents the status of file in the index relative to the HEAD, and the
     * `GIT_STATUS_WT` set of flags represent the status of the file in the
     * working directory relative to the index.*/
-
-
-    fileName=fileName;
 
     if(git_status_t!=GIT_STATUS_IGNORED){
         int *num = (int*) numDirty;

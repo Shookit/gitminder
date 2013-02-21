@@ -1,4 +1,7 @@
 #include "mainwindow.h"
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
 
 //MainWindow Constructor
 MainWindow::MainWindow(QWidget *parent) :
@@ -13,6 +16,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     setupSystemTray();
     populateOptionsFromSettings();
+    _CrtDumpMemoryLeaks();
+
     getWatchDirectoryNamesFromSettings();
     updateAllWatchDirectoryStatus();
     setupFileWatcher();
@@ -56,7 +61,7 @@ void MainWindow::setupNotifyTimers(){
 
 
 void MainWindow::setupSystemTray(){
-    QIcon icon(":/images/stop.png");
+    QIcon icon(":/images/icon_green.png");
 
     trayIcon.setIcon(icon);
 

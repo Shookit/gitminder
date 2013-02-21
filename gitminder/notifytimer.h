@@ -20,8 +20,8 @@ private:
     QString repoPath;
     QSystemTrayIcon * trayIcon;
     QTimer * timer;
-    void NotifyTimer::showMessage();
-    void NotifyTimer::startTimer(int num_seconds);
+    void showMessage();
+    void startTimer(int num_seconds);
 
 private slots:
     void timeout();
