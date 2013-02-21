@@ -1,7 +1,5 @@
 #include "mainwindow.h"
-#define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <crtdbg.h>
+
 
 //MainWindow Constructor
 MainWindow::MainWindow(QWidget *parent) :
@@ -16,7 +14,6 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     setupSystemTray();
     populateOptionsFromSettings();
-    _CrtDumpMemoryLeaks();
 
     getWatchDirectoryNamesFromSettings();
     updateAllWatchDirectoryStatus();
@@ -130,6 +127,7 @@ void MainWindow::updateWatchDirectoryStatus(QString repoPath){
             git_revwalk_new(&walk, repo);
             git_revwalk_push_head(walk);
             git_revwalk_next(&oid, walk);
+            git_revwalk_free(walk);
 
             char * commit_id = new char[41]; //Commit ID
             git_oid_tostr(commit_id, 41, &oid);
@@ -179,6 +177,7 @@ void MainWindow::updateWatchDirectoryStatus(QString repoPath){
                 item->setText(1, "Dirty");
 
             }
+            free(commit_id);
             settings.endArray();
         }
     }

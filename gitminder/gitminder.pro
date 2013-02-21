@@ -27,17 +27,9 @@ RESOURCES += \
     resource.qrc
 
 
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/libgit2/lib/ -lgit2
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/libgit2/lib/ -lgit2
-else:unix: LIBS += -L$$PWD/libgit2/lib/ -lgit2
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/libgit2/windows/lib/ -lgit2
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/libgit2/windows/lib/ -lgit2
+else:unix: LIBS += -L$$PWD/libgit2/linux_64/lib/ -lgit2
 
-INCLUDEPATH += $$PWD/libgit2/include
-DEPENDPATH += $$PWD/libgit2/include
-
-
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/vld/lib/ -lvl
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/vld/lib/ -lvld
-else:unix: LIBS += -L$$PWD/vld/lib/ -lvl
-
-INCLUDEPATH += $$PWD/vld/include
-DEPENDPATH += $$PWD/vld/include
+INCLUDEPATH += $$PWD/libgit2/windows/include
+DEPENDPATH += $$PWD/libgit2/windows/include

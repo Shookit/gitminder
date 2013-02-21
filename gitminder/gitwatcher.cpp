@@ -44,7 +44,7 @@ void GitWatcher::timeout(){
 }
 
 
-void GitWatcher::directoryChangedSlot(QString changedDirectory)
+void GitWatcher::directoryChangedSlot(QString)  //QString is the changed directory
 {
     timer->start(5000);
 }
@@ -89,6 +89,7 @@ int gitRecursiveStatus(QString repoPath){
         //Clean
         return 0;
     }
+    git_repository_free(repo);
 }
 
 
