@@ -17,6 +17,9 @@ NotifyTimer::NotifyTimer(QSystemTrayIcon *trayIcon, QString repoPath, QString ti
     }
 }
 
+NotifyTimer::~NotifyTimer(){
+    delete &repoPath;
+}
 
 void NotifyTimer::startTimer(int num_seconds){
     this->timer = new QTimer();

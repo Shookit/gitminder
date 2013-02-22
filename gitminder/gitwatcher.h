@@ -29,7 +29,6 @@ private:
     QTimer *timer;
     QFileSystemWatcher fileWatcher;
     QFileSystemWatcher dirWatcher;
-    git_repository * gitRepo;
 
     QStringList recursiveFileSearch(QString folder);
     QStringList recursiveDirectorySearch(QString folder);

@@ -9,6 +9,8 @@ GitWatcher::GitWatcher(MainWindow * window, QString repoPath){
     this->window = window;
     this->timer = new QTimer(this);
     this->timer->setSingleShot(true);
+    git_repository * gitRepo;
+
     git_repository_open(&gitRepo, repoPath.toStdString().c_str());
 
     dirWatcher.addPath(repoPath);
@@ -18,12 +20,16 @@ GitWatcher::GitWatcher(MainWindow * window, QString repoPath){
 
     QObject::connect(&dirWatcher,SIGNAL(directoryChanged(QString)), this, SLOT(directoryChangedSlot(QString)));
     QObject::connect(timer, SIGNAL(timeout()), this, SLOT(timeout()));
+    git_repository_free(gitRepo);
 }
 
 
 //Destructor
 GitWatcher::~GitWatcher(){
-
+    delete &repoPath;
+    delete timer;
+    delete &fileWatcher;
+    delete &dirWatcher;
 }
 
 
@@ -56,6 +62,7 @@ int gitFlatStatus(QString repoPath, QString changedDirectory){
     int openRet = git_repository_open(&repo, repoPath.toStdString().c_str());
     if (openRet < 0){
         //Invalid
+        git_repository_free(repo);
         return -1;
     }
 
@@ -65,7 +72,7 @@ int gitFlatStatus(QString repoPath, QString changedDirectory){
         dirIt.next();
         git_status_file(&status_flags, repo, dirIt.filePath().toStdString().c_str());
     }
-
+    git_repository_free(repo);
     return 0;
 }
 
@@ -81,6 +88,8 @@ int gitRecursiveStatus(QString repoPath){
 
     int numDirty = 0;
     git_status_foreach(repo, &directoryChangedCallback, &numDirty);
+    git_repository_free(repo);
+
     if (numDirty>0){
         //Dirty
         return 1;
@@ -89,7 +98,6 @@ int gitRecursiveStatus(QString repoPath){
         //Clean
         return 0;
     }
-    git_repository_free(repo);
 }
 
 

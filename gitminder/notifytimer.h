@@ -15,7 +15,7 @@ class NotifyTimer : QObject
 
 public:
     NotifyTimer(QSystemTrayIcon * trayIcon, QString repoPath, QString timestamp);
-
+    ~NotifyTimer();
 private:
     QString repoPath;
     QSystemTrayIcon * trayIcon;

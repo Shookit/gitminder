@@ -177,8 +177,10 @@ void MainWindow::updateWatchDirectoryStatus(QString repoPath){
                 item->setText(1, "Dirty");
 
             }
-            free(commit_id);
+            delete[] commit_id;
             settings.endArray();
+            git_repository_free(repo);
+
         }
     }
 }
@@ -199,6 +201,8 @@ void MainWindow::systemTrayClickedSlot(QSystemTrayIcon::ActivationReason activat
     case QSystemTrayIcon::MiddleClick:
         break;
     case QSystemTrayIcon::Trigger:
+        break;
+    default:
         break;
     }
 }
