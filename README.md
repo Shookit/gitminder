@@ -10,6 +10,7 @@ gitminder requirements:
 
 Known issues / upcoming features
 ================================
+* There are currently undeleted filewatcher and notifytimer connections, so the connections are being called multiple times
 * Recursively add git directories to watchlist
 * Close expectedly on linux
 * Performance improvements so all files aren't scanned upon a status change.
