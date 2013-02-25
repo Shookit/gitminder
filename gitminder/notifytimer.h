@@ -9,19 +9,22 @@
 #include <QTimer>
 
 
-class NotifyTimer : QObject
+class NotifyTimer : public QObject
 {
     Q_OBJECT
 
 public:
-    NotifyTimer(QSystemTrayIcon * trayIcon, QString repoPath, QString timestamp);
+    NotifyTimer(QString repoPath, QString timestamp);
     ~NotifyTimer();
+
 private:
     QString repoPath;
-    QSystemTrayIcon * trayIcon;
     QTimer * timer;
-    void showMessage();
+
     void startTimer(int num_seconds);
+
+signals:
+    void notifyTimeoutSignal(QString repoPath);
 
 private slots:
     void timeout();

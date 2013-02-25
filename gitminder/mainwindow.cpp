@@ -11,10 +11,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->setupUi(this);
 
     setupSystemTray();
-    populateFromSettings();
-    updateAllWatchDirectoryStatus();
-    setupFileWatcher();
+    setupFileWatchers();
     setupNotifyTimers();
+    updateSystemTray();
+
     ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
     ui->treeWidget->resizeColumnToContents(0);
 }
@@ -27,75 +27,47 @@ MainWindow::~MainWindow(){
 
 
 //Functions
-void MainWindow::setupFileWatcher(){
+void MainWindow::setupFileWatchers(){
     gitWatchers.clear();
-    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
-        QTreeWidgetItem * item =  ui->treeWidget->topLevelItem(i);
-        GitWatcher * watcher = new GitWatcher(this,item->text(0).toStdString().c_str());
+
+    QSettings settings;
+    int size = settings.beginReadArray("watch_directories");
+    for (int i = 0; i < size; ++i) {
+        settings.setArrayIndex(i);
+        FileWatcher * watcher = new FileWatcher(settings.value("directory").toString());
+        connect(watcher, SIGNAL(fileChangedSignal(QString)), this, SLOT(fileChangedSlot(QString)));
+
         gitWatchers.append(watcher);
     }
+    settings.endArray();
 }
 
 
 void MainWindow::setupNotifyTimers(){
     notifyTimers.clear();
-    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
-        QTreeWidgetItem * item =  ui->treeWidget->topLevelItem(i);
-        if (item->text(1) == "Dirty"){
-            QMap<QString, QString> repoSettings = getRepoSettings(item->text(0));
-            NotifyTimer * timer = new NotifyTimer(&trayIcon, item->text(0), repoSettings["timestamp"]);
+
+    QSettings settings;
+    int size = settings.beginReadArray("watch_directories");
+    numDirty = 0;
+    for (int i = 0; i < size; ++i) {
+        settings.setArrayIndex(i);
+        if (settings.value("status") == "dirty"){
+            numDirty++;
+            NotifyTimer * timer = new NotifyTimer(settings.value("directory").toString(), settings.value("timestamp").toString());
+            connect(timer, SIGNAL(notifyTimeoutSignal(QString)), this, SLOT(trayNotifySlot(QString)));
             notifyTimers.append(timer);
         }
     }
-}
-
-
-QMap<QString, QString> MainWindow::getRepoSettings(QString repoPath){
-    QSettings settings;
-    QMap<QString, QString> repoSettings;
-
-    int size = settings.beginReadArray("watch_directories");
-    for (int i = 0; i < size; ++i) {
-        settings.setArrayIndex(i);
-        if (settings.value("directory").toString().compare(repoPath)==0){
-            repoSettings.insert("status", settings.value("status").toString());
-            repoSettings.insert("commit", settings.value("commit").toString());
-            repoSettings.insert("timestamp", settings.value("timestamp").toString());
-        }
-    }
-    return repoSettings;
-}
-
-void MainWindow::updateRepoSettings(QMap<QString, QString> repoSettings){
-    QSettings settings;
-
-    int size = settings.beginReadArray("watch_directories");
-    for (int i = 0; i < size; ++i) {
-        settings.setArrayIndex(i);
-        if (settings.value("directory").toString().compare(repoSettings["directory"])==0){
-            if (repoSettings.contains("status"))
-                settings.setValue("status", repoSettings["status"]);
-
-            if (repoSettings.contains("commit"))
-                settings.setValue("commit", repoSettings["commit"]);
-
-            if (repoSettings.contains("timestamp"))
-                settings.setValue("timestamp", repoSettings["timestamp"]);
-        }
-    }
+    settings.endArray();
 }
 
 
 void MainWindow::setupSystemTray(){
-    QIcon icon(":/images/icon_green.png");
-
-    trayIcon.setIcon(icon);
-
     QAction * openAction = new QAction("Open", this);
-    connect(openAction, SIGNAL(triggered()), this, SLOT(openApp()));
+    connect(openAction, SIGNAL(triggered()), this, SLOT(openAppSlot()));
 
     QAction * closeAction = new QAction("Close", this);
-    connect(closeAction, SIGNAL(triggered()), this, SLOT(exitApp()));
+    connect(closeAction, SIGNAL(triggered()), this, SLOT(exitAppSlot()));
 
     QMenu * trayMenu = new QMenu(this);
     trayMenu->addAction(openAction);
@@ -108,9 +80,21 @@ void MainWindow::setupSystemTray(){
 }
 
 
-void MainWindow::populateFromSettings(){
-    QSettings settings;
+void MainWindow::updateSystemTray(){
+    if (numDirty == 0){
+        QIcon icon(":/images/icon_green.png");
+        trayIcon.setIcon(icon);
+    }
+    else if (numDirty > 0){
+        QIcon icon(":/images/icon_red.png");
+        trayIcon.setIcon(icon);
+    }
+}
 
+
+void MainWindow::populateUI(){
+    QSettings settings;
+    ui->treeWidget->clear();
     ui->commit_reminder->setChecked(settings.value("commit_reminder").toBool());
     ui->commit_reminder_time->setValue(settings.value("commit_reminder_time").toInt());
 
@@ -118,106 +102,61 @@ void MainWindow::populateFromSettings(){
     ui->update_notification_frequency->setValue(settings.value("update_notification_frequency").toInt());
 
     int size = settings.beginReadArray("watch_directories");
-    for (int i = 0; i < size; ++i) {
+    for (int i = 0; i < size; ++i){
         settings.setArrayIndex(i);
         QTreeWidgetItem * item = new QTreeWidgetItem();
 
         item->setText(0,settings.value("directory").toString());
 
+        int gitStatus = gitRecursiveStatus(settings.value("directory").toString());
+        if(gitStatus == 0){
+            item->setText(1, "Clean");
+        }else if(gitStatus == 1){
+            item->setText(1, "Dirty");
+        }else if(gitStatus == -1){
+            item->setText(1, "Invalid");
+        }
+
         ui->treeWidget->addTopLevelItem(item);
     }
     settings.endArray();
-}
-
-void MainWindow::updateAllWatchDirectoryStatus(){
-    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
-        QString itemText =  ui->treeWidget->topLevelItem(i)->text(0);
-        updateWatchDirectoryStatus(itemText);
-    }
+    ui->treeWidget->resizeColumnToContents(0);
 }
 
 
-void MainWindow::updateWatchDirectoryStatus(QString repoPath){
-    for (int i = 0; i < ui->treeWidget->topLevelItemCount(); ++i) {
-        QTreeWidgetItem * item = ui->treeWidget->topLevelItem(i);
-
-        if (repoPath == item->text(0)){
-            int repoStatus = gitRecursiveStatus(repoPath);
-
-            if (repoStatus == -1){
-                item->setText(1, "Invalid");
-                break;
-            }
-
-            git_revwalk * walk;
-            git_repository * repo;
-            git_oid oid;
-
-            git_repository_open(&repo, item->text(0).toStdString().c_str());
-            git_revwalk_new(&walk, repo);
-            git_revwalk_push_head(walk);
-            git_revwalk_next(&oid, walk);
-            git_revwalk_free(walk);
-
-            char * commit_id = new char[41]; //Commit ID
-            git_oid_tostr(commit_id, 41, &oid);
-
-            QMap<QString,QString> repoSettings;
-            repoSettings["directory"] = repoPath;
-
-            if(repoStatus == 0){
-                //If clean
-                item->setText(1, "Clean");
-                repoSettings["commit"] = commit_id;
-                repoSettings["status"] = "clean";
-            }else if(repoStatus == 1){
-                //If dirty
-                repoSettings["status"] = "dirty";
-                item->setText(1, "Dirty");
-                QString prevCommitId = getRepoSettings(repoPath)["commit"];
-
-                if (strcmp(prevCommitId.toStdString().c_str(), commit_id) != 0){
-                    //If different commit ID
-                    repoSettings["commit"] = commit_id;
-                    repoSettings["timestamp"] = QString::number(QDateTime::currentMSecsSinceEpoch()/1000);
-                }
-                else{
-                    //If same commit ID
-                    QString prevStatus = getRepoSettings(repoPath)["status"];
-                    if (prevStatus.compare("dirty") == 0){
-                        //If previously dirty
-                    }
-                    else if (prevStatus.compare("clean") == 0){
-                        //If previously clean
-                        repoSettings["commit"] = commit_id;
-                        repoSettings["timestamp"] = QString::number(QDateTime::currentMSecsSinceEpoch()/1000);
-                    }
-                }
-            }
-
-            updateRepoSettings(repoSettings);
-            delete[] commit_id;
-            git_repository_free(repo);
-
-        }
-    }
+//Slots
+void MainWindow::trayNotifySlot(QString repoPath){
+    QSettings settings;
+    qDebug() << "message popped up";
+    this->trayIcon.showMessage(repoPath, "This repository hasn't been committed in over " + settings.value("commit_reminder_time").toString() + " minutes.");
 }
 
 
-void MainWindow::openApp(){
+void MainWindow::fileChangedSlot(QString repoPath){
+    setupFileWatchers();
+    setupNotifyTimers();
+    updateAllWatchDirectoryData();
+    updateSystemTray();
+}
+
+
+void MainWindow::openAppSlot(){
+    populateUI();
     this->show();
     this->raise();
     this->setFocus();
 }
 
-void MainWindow::exitApp(){
+
+void MainWindow::exitAppSlot(){
     qApp->exit();
 }
+
 
 void MainWindow::systemTrayClickedSlot(QSystemTrayIcon::ActivationReason activationType){
     switch(activationType){
     case QSystemTrayIcon::DoubleClick:
-        openApp();
+        openAppSlot();
         break;
     case QSystemTrayIcon::Context:
         trayIcon.contextMenu()->show();
@@ -251,12 +190,10 @@ void MainWindow::on_browse_clicked(){
 
 
 void MainWindow::on_add_clicked(){
-
     QTreeWidgetItem * item = new QTreeWidgetItem();
     item->setText(0,ui->lineEdit->text());
+    item->setText(1,repoStatusToText(gitRecursiveStatus(ui->lineEdit->text())));
     ui->treeWidget->addTopLevelItem(item);
-    ui->treeWidget->resizeColumnToContents(0);
-    updateWatchDirectoryStatus(ui->lineEdit->text());
     ui->lineEdit->clear();
 }
 
@@ -293,9 +230,10 @@ void MainWindow::on_buttonBox_accepted(){
     //Hide
     this->hide();
 
-    updateAllWatchDirectoryStatus();
-    setupFileWatcher();
+    setupFileWatchers();
     setupNotifyTimers();
+    updateAllWatchDirectoryData();
+    updateSystemTray();
 }
 
 

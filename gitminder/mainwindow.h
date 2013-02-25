@@ -15,15 +15,16 @@
 #include <QMap>
 #include <QFileSystemWatcher>
 #include <git2.h>
+#include "git.h"
 #include "ui_mainwindow.h"
-#include "gitwatcher.h"
+#include "filewatcher.h"
 #include "notifytimer.h"
 
 namespace Ui {
 class MainWindow;
 }
 
-class GitWatcher;
+class FileWatcher;
 
 class MainWindow : public QMainWindow
 {
@@ -32,27 +33,27 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
-    void updateWatchDirectoryStatus(QString repoPath);
+    void updateWatchDirectoryData(QString repoPath);
 
 private:
-    QLinkedList<GitWatcher*> gitWatchers;
+    QLinkedList<FileWatcher*> gitWatchers;
     QLinkedList<NotifyTimer*> notifyTimers;
     QSystemTrayIcon trayIcon;
+    int numDirty;
 
-    QMap<QString, QString> getRepoSettings(QString repoPath);
-    void MainWindow::updateRepoSettings(QMap<QString, QString> repoSettings);
     void setupSystemTray();
-    void setupFileWatcher();
-    void populateFromSettings();
-    void updateAllWatchDirectoryStatus();
+    void setupFileWatchers();
+    void populateUI();
     void setupNotifyTimers();
-
-public slots:
+    void updateSystemTray();
 
 private slots:
+    void trayNotifySlot(QString);
+    void fileChangedSlot(QString);
     void systemTrayClickedSlot(QSystemTrayIcon::ActivationReason);
-    void openApp();
-    void exitApp();
+    void openAppSlot();
+    void exitAppSlot();
+
     void on_remove_clicked();
     void on_buttonBox_accepted();
     void on_buttonBox_rejected();

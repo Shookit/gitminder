@@ -12,12 +12,14 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    gitwatcher.cpp \
-    notifytimer.cpp
+    notifytimer.cpp \
+    filewatcher.cpp \
+    git.cpp
 
 HEADERS  += mainwindow.h \
-    gitwatcher.h \
-    notifytimer.h
+    notifytimer.h \
+    filewatcher.h \
+    git.h
 
 FORMS    += mainwindow.ui
 
