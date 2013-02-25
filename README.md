@@ -26,9 +26,11 @@ Compiling libgit2
 * Make sure you use the same compiler as the one Qt is using.
 * Open the VS2010 Command Prompt (not a regular cmd prompt or the Windows SDK one!)
 
+``` bash
 	cd into the libgit2 directory
 	mkdir build && cd build
 	cmake .. or cmake-gui ..
 	cmake --build .
 	ctest -V
 	cmake --build . --target install
+```
