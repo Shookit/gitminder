@@ -12,6 +12,7 @@
 #include <QThread>
 #include <QtConcurrent/QtConcurrent>
 #include <QLinkedList>
+#include <QMap>
 #include <QFileSystemWatcher>
 #include <git2.h>
 #include "ui_mainwindow.h"
@@ -38,10 +39,11 @@ private:
     QLinkedList<NotifyTimer*> notifyTimers;
     QSystemTrayIcon trayIcon;
 
+    QMap<QString, QString> getRepoSettings(QString repoPath);
+    void MainWindow::updateRepoSettings(QMap<QString, QString> repoSettings);
     void setupSystemTray();
     void setupFileWatcher();
-    void populateOptionsFromSettings();
-    void getWatchDirectoryNamesFromSettings();
+    void populateFromSettings();
     void updateAllWatchDirectoryStatus();
     void setupNotifyTimers();
 
@@ -49,6 +51,8 @@ public slots:
 
 private slots:
     void systemTrayClickedSlot(QSystemTrayIcon::ActivationReason);
+    void openApp();
+    void exitApp();
     void on_remove_clicked();
     void on_buttonBox_accepted();
     void on_buttonBox_rejected();
