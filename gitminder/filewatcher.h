@@ -10,12 +10,7 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QSettings>
-#include "mainwindow.h"
 #include "git.h"
-
-int directoryChangedCallback(const char *, unsigned int status_flags, void *repoPath);
-int gitRecursiveStatus(QString repoPath);
-int gitFlatStatus(QString repoPath, QString changedDirectory);
 
 class MainWindow;
 

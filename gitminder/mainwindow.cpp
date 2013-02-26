@@ -11,8 +11,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->setupUi(this);
 
     setupSystemTray();
+
     setupFileWatchers();
     setupNotifyTimers();
+    updateAllWatchDirectoryData();
     updateSystemTray();
 
     ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
@@ -28,22 +30,25 @@ MainWindow::~MainWindow(){
 
 //Functions
 void MainWindow::setupFileWatchers(){
+    qDeleteAll(gitWatchers);
     gitWatchers.clear();
 
     QSettings settings;
     int size = settings.beginReadArray("watch_directories");
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
-        FileWatcher * watcher = new FileWatcher(settings.value("directory").toString());
-        connect(watcher, SIGNAL(fileChangedSignal(QString)), this, SLOT(fileChangedSlot(QString)));
+        //FileWatcher * watcher = new FileWatcher(settings.value("directory").toString());
+        //connect(watcher, SIGNAL(fileChangedSignal(QString)), this, SLOT(fileChangedSlot(QString)));
 
-        gitWatchers.append(watcher);
+        gitWatchers.append(new FileWatcher(settings.value("directory").toString()));
+        connect(gitWatchers.last(), SIGNAL(fileChangedSignal(QString)), this, SLOT(fileChangedSlot(QString)));
     }
     settings.endArray();
 }
 
 
 void MainWindow::setupNotifyTimers(){
+    qDeleteAll(notifyTimers);
     notifyTimers.clear();
 
     QSettings settings;
