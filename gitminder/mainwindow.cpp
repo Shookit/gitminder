@@ -12,9 +12,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     setupSystemTray();
 
+    updateAllWatchDirectoryData();
     setupFileWatchers();
     setupNotifyTimers();
-    updateAllWatchDirectoryData();
     updateSystemTray();
 
     ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
@@ -134,9 +134,9 @@ void MainWindow::trayNotifySlot(QString repoPath){
 
 
 void MainWindow::fileChangedSlot(QString repoPath){
+    updateAllWatchDirectoryData();
     setupFileWatchers();
     setupNotifyTimers();
-    updateAllWatchDirectoryData();
     updateSystemTray();
 }
 
@@ -231,9 +231,9 @@ void MainWindow::on_buttonBox_accepted(){
     //Hide
     this->hide();
 
+    updateAllWatchDirectoryData();
     setupFileWatchers();
     setupNotifyTimers();
-    updateAllWatchDirectoryData();
     updateSystemTray();
 }
 
