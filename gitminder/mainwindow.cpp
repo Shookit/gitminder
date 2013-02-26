@@ -37,9 +37,6 @@ void MainWindow::setupFileWatchers(){
     int size = settings.beginReadArray("watch_directories");
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
-        //FileWatcher * watcher = new FileWatcher(settings.value("directory").toString());
-        //connect(watcher, SIGNAL(fileChangedSignal(QString)), this, SLOT(fileChangedSlot(QString)));
-
         gitWatchers.append(new FileWatcher(settings.value("directory").toString()));
         connect(gitWatchers.last(), SIGNAL(fileChangedSignal(QString)), this, SLOT(fileChangedSlot(QString)));
     }
@@ -58,9 +55,8 @@ void MainWindow::setupNotifyTimers(){
         settings.setArrayIndex(i);
         if (settings.value("status") == "dirty"){
             numDirty++;
-            NotifyTimer * timer = new NotifyTimer(settings.value("directory").toString(), settings.value("timestamp").toString());
-            connect(timer, SIGNAL(notifyTimeoutSignal(QString)), this, SLOT(trayNotifySlot(QString)));
-            notifyTimers.append(timer);
+            notifyTimers.append(new NotifyTimer(settings.value("directory").toString(), settings.value("timestamp").toString()));
+            connect(notifyTimers.last(), SIGNAL(notifyTimeoutSignal(QString)), this, SLOT(trayNotifySlot(QString)));
         }
     }
     settings.endArray();
