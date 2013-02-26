@@ -133,7 +133,7 @@ void MainWindow::trayNotifySlot(QString repoPath){
 }
 
 
-void MainWindow::fileChangedSlot(QString repoPath){
+void MainWindow::fileChangedSlot(QString){  //QString is the repoPath
     updateAllWatchDirectoryData();
     setupFileWatchers();
     setupNotifyTimers();
@@ -201,7 +201,7 @@ void MainWindow::on_add_clicked(){
 
 void MainWindow::on_buttonBox_accepted(){
     QSettings settings;
-    QList<QMap<QString, QString>> settingsList;
+    QList<QMap<QString, QString> > settingsList;
     ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
 
     //Watch directories

@@ -10,7 +10,6 @@ gitminder requirements:
 
 Known issues / upcoming features
 ================================
-* Close expectedly on linux
 * Should only reset filewatchers and notifytimers when program is started, OK button is pressed, or when something actually is updated in updateWatchDirectoryData (return a status code), not on every file change.
 * Should only update filewatchers and notifytimers on the changed repo, (not on all repos) when a file is changed.
 * May be a minor memory leak or two in the notifytimer or filewatcher code

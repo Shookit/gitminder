@@ -2,6 +2,7 @@
 
 NotifyTimer::NotifyTimer(QString repoPath, QString timestamp)
 {
+    this->timer = NULL;
     this->repoPath = repoPath;
     QSettings settings;
 
@@ -22,6 +23,9 @@ NotifyTimer::~NotifyTimer(){
 
 
 void NotifyTimer::startTimer(int num_seconds){
+    if (this->timer!=NULL){
+        delete this->timer;
+    }
     this->timer = new QTimer();
     this->timer->setSingleShot(true);
     QObject::connect(timer, SIGNAL(timeout()), this, SLOT(timeout()));
