@@ -19,6 +19,7 @@ NotifyTimer::NotifyTimer(QString repoPath, QString timestamp)
 
 
 NotifyTimer::~NotifyTimer(){
+    delete this->timer;
 }
 
 

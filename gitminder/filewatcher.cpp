@@ -22,6 +22,7 @@ FileWatcher::FileWatcher(QString repoPath){
 
 //Destructor
 FileWatcher::~FileWatcher(){
+    delete this->timer;
 }
 
 

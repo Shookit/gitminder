@@ -25,7 +25,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 //MainWindow Destructor
 MainWindow::~MainWindow(){
     delete ui;
+
+    qDeleteAll(notifyTimers);
+    notifyTimers.clear();
+
+    qDeleteAll(gitWatchers);
+    gitWatchers.clear();
 }
+
 
 
 //Functions

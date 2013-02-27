@@ -12,7 +12,6 @@ Known issues / upcoming features
 ================================
 * Should only reset filewatchers and notifytimers when program is started, OK button is pressed, or when something actually is updated in updateWatchDirectoryData (return a status code), not on every file change.
 * Should only update filewatchers and notifytimers on the changed repo, (not on all repos) when a file is changed.
-* May be a minor memory leak or two in the notifytimer or filewatcher code
 * Recursively add git directories to watchlist
 * Performance improvements so all files aren't scanned upon a status change.
 * gitminder currently can't check if the remote repo has been updated; this will be implemented eventually, but most of my repos are single-user, so I'm holding off on this one for a bit.
