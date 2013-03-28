@@ -141,6 +141,8 @@ void MainWindow::trayNotifySlot(QString repoPath){
 
 
 void MainWindow::fileChangedSlot(QString){  //QString is the repoPath
+    qDebug() << "file changed slot called";
+    populateUI();
     updateAllWatchDirectoryData();
     setupFileWatchers();
     setupNotifyTimers();
