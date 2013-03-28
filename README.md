@@ -10,11 +10,15 @@ gitminder requirements:
 
 Known issues / upcoming features
 ================================
-* Should only reset filewatchers and notifytimers when program is started, OK button is pressed, or when something actually is updated in updateWatchDirectoryData (return a status code), not on every file change.
-* Should only update filewatchers and notifytimers on the changed repo, (not on all repos) when a file is changed.
 * Recursively add git directories to watchlist
-* Performance improvements so all files aren't scanned upon a status change.
 * gitminder currently can't check if the remote repo has been updated; this will be implemented eventually, but most of my repos are single-user, so I'm holding off on this one for a bit.
+
+Binary Releases
+===============
+* I will occasionally release binary .zip files, just on Windows initially (since I primarily develop on Windows right now).
+* These zip files are way bigger than necessary - I included all Qt .dll files, not just the ones that are actually necessary.
+* If you want a binary release for Linux, just let me know and I'll create one for you; I just don't have the energy to support a binary Linux release if no one wants it.
+* Either way, compilation is pretty simple if you want the latest version.
 
 Compiling libgit2
 =================
