@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>624</width>
-    <height>348</height>
+    <width>788</width>
+    <height>458</height>
    </rect>
   </property>
   <widget class="QWidget" name="centralWidget">
@@ -70,6 +70,13 @@
            <widget class="QPushButton" name="add">
             <property name="text">
              <string>Add directory</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkBox">
+            <property name="text">
+             <string>Add all repos in this directory</string>
             </property>
            </widget>
           </item>
