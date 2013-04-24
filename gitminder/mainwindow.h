@@ -39,7 +39,6 @@ private:
     QLinkedList<FileWatcher*> gitWatchers;
     QLinkedList<NotifyTimer*> notifyTimers;
     QSystemTrayIcon trayIcon;
-    int numDirty;
 
     void setupSystemTray();
     void setupFileWatchers();

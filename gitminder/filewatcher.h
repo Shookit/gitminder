@@ -27,12 +27,14 @@ signals:
 
 private:
     QString repoPath;
-    QTimer *timer;
+    QTimer *file_changed_delay_timer;
+    QTimer *alternative_file_checker;
     QFileSystemWatcher dirWatcher;
     QStringList recursiveDirectorySearch(QString folder);
 
 private slots:
-    void timeout();
+    void file_changed_delay_timer_timeout();
+    void alternative_file_checker_timeout();
     void directoryChangedSlot(QString changedFile);
 
 };
