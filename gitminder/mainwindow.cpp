@@ -212,9 +212,23 @@ void MainWindow::on_browse_clicked(){
 
 void MainWindow::on_add_clicked(){
     QTreeWidgetItem * item = new QTreeWidgetItem();
-    item->setText(0,ui->lineEdit->text());
-    item->setText(1,repoStatusToText(gitRecursiveStatus(ui->lineEdit->text())));
-    ui->treeWidget->addTopLevelItem(item);
+    if (ui->checkBox->isChecked()){
+        QDir dir(ui->lineEdit->text());
+        QStringList entryList = dir.entryList(QDir::NoDotAndDotDot|QDir::Dirs);
+        for(int i = 0; i<entryList.count(); ++i){
+            if (ui->treeWidget->findItems(dir.absolutePath() + "/" + entryList.at(i),0,0).count()==0){
+                item->setText(0, dir.absolutePath() + "/" + entryList.at(i));
+                ui->treeWidget->addTopLevelItem(item);
+            }
+        }
+
+
+    }
+    else{
+        item->setText(0,ui->lineEdit->text());
+        item->setText(1,repoStatusToText(gitRecursiveStatus(ui->lineEdit->text())));
+        ui->treeWidget->addTopLevelItem(item);
+    }
     ui->lineEdit->clear();
 }
 
