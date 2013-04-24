@@ -37,5 +37,5 @@ void NotifyTimer::startTimer(int num_seconds){
 
 void NotifyTimer::timeout(){
     emit notifyTimeoutSignal(this->repoPath);
-    startTimer(5*60);
+    startTimer(15*60);
 }

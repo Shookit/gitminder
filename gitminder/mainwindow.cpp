@@ -34,7 +34,6 @@ MainWindow::~MainWindow(){
 }
 
 
-
 //Functions
 void MainWindow::setupFileWatchers(){
     qDeleteAll(gitWatchers);
@@ -57,11 +56,9 @@ void MainWindow::setupNotifyTimers(){
 
     QSettings settings;
     int size = settings.beginReadArray("watch_directories");
-    numDirty = 0;
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
         if (settings.value("status") == "dirty"){
-            numDirty++;
             notifyTimers.append(new NotifyTimer(settings.value("directory").toString(), settings.value("timestamp").toString()));
             connect(notifyTimers.last(), SIGNAL(notifyTimeoutSignal(QString)), this, SLOT(trayNotifySlot(QString)));
         }
@@ -89,12 +86,26 @@ void MainWindow::setupSystemTray(){
 
 
 void MainWindow::updateSystemTray(){
-    if (numDirty == 0){
-        QIcon icon(":/images/icon_green.png");
-        trayIcon.setIcon(icon);
+    QSettings settings;
+
+    int delayNotification = settings.value("commit_reminder_time").toInt()*60;
+    int size = settings.beginReadArray("watch_directories");
+    bool changed = false;
+    for (int i = 0; i < size; ++i) {
+        settings.setArrayIndex(i);
+        if (settings.value("status") == "dirty"){
+            int duration_dirty = QDateTime::currentMSecsSinceEpoch ()/1000 - settings.value("timestamp").toInt() ;
+            if (duration_dirty > delayNotification){
+                QIcon icon(":/images/icon_red.png");
+                trayIcon.setIcon(icon);
+                changed = true;
+            }
+        }
     }
-    else if (numDirty > 0){
-        QIcon icon(":/images/icon_red.png");
+    settings.endArray();
+
+    if (changed == false){
+        QIcon icon(":/images/icon_green.png");
         trayIcon.setIcon(icon);
     }
 }
@@ -136,6 +147,7 @@ void MainWindow::populateUI(){
 void MainWindow::trayNotifySlot(QString repoPath){
     QSettings settings;
     qDebug() << "message popped up";
+    updateSystemTray();
     this->trayIcon.showMessage(repoPath, "This repository hasn't been committed in over " + settings.value("commit_reminder_time").toString() + " minutes.");
 }
 
