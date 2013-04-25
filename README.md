@@ -10,8 +10,8 @@ gitminder requirements:
 
 Known issues / upcoming features
 ================================
-* Recursively add git directories to watchlist
 * gitminder currently can't check if the remote repo has been updated; this will be implemented eventually, but most of my repos are single-user, so I'm holding off on this one for a bit.
+* (Code-side, not a feature or issue) - Separate registry accesses references from rest of functions (bad coupling situation currently)
 
 Binary Releases
 ===============
