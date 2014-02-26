@@ -99,6 +99,11 @@ GIT_BEGIN_DECL
  *   files with unmerged index entries instead.  GIT_CHECKOUT_USE_OURS and
  *   GIT_CHECKOUT_USE_THEIRS to proceed with the checkout using either the
  *   stage 2 ("ours") or stage 3 ("theirs") version of files in the index.
+ *
+ * - GIT_CHECKOUT_DONT_OVERWRITE_IGNORED prevents ignored files from being
+ *   overwritten.  Normally, files that are ignored in the working directory
+ *   are not considered "precious" and may be overwritten if the checkout
+ *   target contains that file.
  */
 typedef enum {
 	GIT_CHECKOUT_NONE = 0, /** default is a dry run, no actual updates */
@@ -131,19 +136,31 @@ typedef enum {
 	/** Don't refresh index/config/etc before doing checkout */
 	GIT_CHECKOUT_NO_REFRESH = (1u << 9),
 
+	/** Allow checkout to skip unmerged files */
+	GIT_CHECKOUT_SKIP_UNMERGED = (1u << 10),
+	/** For unmerged files, checkout stage 2 from index */
+	GIT_CHECKOUT_USE_OURS = (1u << 11),
+	/** For unmerged files, checkout stage 3 from index */
+	GIT_CHECKOUT_USE_THEIRS = (1u << 12),
+
 	/** Treat pathspec as simple list of exact match file paths */
 	GIT_CHECKOUT_DISABLE_PATHSPEC_MATCH = (1u << 13),
+
+	/** Ignore directories in use, they will be left empty */
+	GIT_CHECKOUT_SKIP_LOCKED_DIRECTORIES = (1u << 18),
+
+	/** Don't overwrite ignored files that exist in the checkout target */
+	GIT_CHECKOUT_DONT_OVERWRITE_IGNORED = (1u << 19),
+
+	/** Write normal merge files for conflicts */
+	GIT_CHECKOUT_CONFLICT_STYLE_MERGE = (1u << 20),
+
+	/** Include common ancestor data in diff3 format files for conflicts */
+	GIT_CHECKOUT_CONFLICT_STYLE_DIFF3 = (1u << 21),
 
 	/**
 	 * THE FOLLOWING OPTIONS ARE NOT YET IMPLEMENTED
 	 */
-
-	/** Allow checkout to skip unmerged files (NOT IMPLEMENTED) */
-	GIT_CHECKOUT_SKIP_UNMERGED = (1u << 10),
-	/** For unmerged files, checkout stage 2 from index (NOT IMPLEMENTED) */
-	GIT_CHECKOUT_USE_OURS = (1u << 11),
-	/** For unmerged files, checkout stage 3 from index (NOT IMPLEMENTED) */
-	GIT_CHECKOUT_USE_THEIRS = (1u << 12),
 
 	/** Recursively checkout submodules with same options (NOT IMPLEMENTED) */
 	GIT_CHECKOUT_UPDATE_SUBMODULES = (1u << 16),
@@ -171,7 +188,12 @@ typedef enum {
  * - GIT_CHECKOUT_NOTIFY_IGNORED notifies about ignored files.
  *
  * Returning a non-zero value from this callback will cancel the checkout.
- * Notification callbacks are made prior to modifying any files on disk.
+ * The non-zero return value will be propagated back and returned by the
+ * git_checkout_... call.
+ *
+ * Notification callbacks are made prior to modifying any files on disk,
+ * so canceling on any notification will still happen prior to any files
+ * being modified.
  */
 typedef enum {
 	GIT_CHECKOUT_NOTIFY_NONE      = 0,
@@ -180,6 +202,8 @@ typedef enum {
 	GIT_CHECKOUT_NOTIFY_UPDATED   = (1u << 2),
 	GIT_CHECKOUT_NOTIFY_UNTRACKED = (1u << 3),
 	GIT_CHECKOUT_NOTIFY_IGNORED   = (1u << 4),
+
+	GIT_CHECKOUT_NOTIFY_ALL       = 0x0FFFFu
 } git_checkout_notify_t;
 
 /** Checkout notification callback function */
@@ -231,6 +255,12 @@ typedef struct git_checkout_opts {
 	git_strarray paths;
 
 	git_tree *baseline; /** expected content of workdir, defaults to HEAD */
+
+	const char *target_directory; /** alternative checkout path to workdir */
+
+	const char *ancestor_label; /** the name of the common ancestor side of conflicts */
+	const char *our_label; /** the name of the "our" side of conflicts */
+	const char *their_label; /** the name of the "their" side of conflicts */
 } git_checkout_opts;
 
 #define GIT_CHECKOUT_OPTS_VERSION 1
@@ -242,13 +272,13 @@ typedef struct git_checkout_opts {
  *
  * @param repo repository to check out (must be non-bare)
  * @param opts specifies checkout options (may be NULL)
- * @return 0 on success, GIT_EORPHANEDHEAD when HEAD points to a non existing
- * branch, GIT_ERROR otherwise (use giterr_last for information
- * about the error)
+ * @return 0 on success, GIT_EUNBORNBRANCH if HEAD points to a non
+ *         existing branch, non-zero value returned by `notify_cb`, or
+ *         other error code < 0 (use giterr_last for error details)
  */
 GIT_EXTERN(int) git_checkout_head(
 	git_repository *repo,
-	git_checkout_opts *opts);
+	const git_checkout_opts *opts);
 
 /**
  * Updates files in the working tree to match the content of the index.
@@ -256,13 +286,13 @@ GIT_EXTERN(int) git_checkout_head(
  * @param repo repository into which to check out (must be non-bare)
  * @param index index to be checked out (or NULL to use repository index)
  * @param opts specifies checkout options (may be NULL)
- * @return 0 on success, GIT_ERROR otherwise (use giterr_last for information
- * about the error)
+ * @return 0 on success, non-zero return value from `notify_cb`, or error
+ *         code < 0 (use giterr_last for error details)
  */
 GIT_EXTERN(int) git_checkout_index(
 	git_repository *repo,
 	git_index *index,
-	git_checkout_opts *opts);
+	const git_checkout_opts *opts);
 
 /**
  * Updates files in the index and working tree to match the content of the
@@ -270,15 +300,15 @@ GIT_EXTERN(int) git_checkout_index(
  *
  * @param repo repository to check out (must be non-bare)
  * @param treeish a commit, tag or tree which content will be used to update
- * the working directory
+ * the working directory (or NULL to use HEAD)
  * @param opts specifies checkout options (may be NULL)
- * @return 0 on success, GIT_ERROR otherwise (use giterr_last for information
- * about the error)
+ * @return 0 on success, non-zero return value from `notify_cb`, or error
+ *         code < 0 (use giterr_last for error details)
  */
 GIT_EXTERN(int) git_checkout_tree(
 	git_repository *repo,
 	const git_object *treeish,
-	git_checkout_opts *opts);
+	const git_checkout_opts *opts);
 
 /** @} */
 GIT_END_DECL

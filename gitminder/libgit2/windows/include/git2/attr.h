@@ -141,7 +141,7 @@ GIT_EXTERN(git_attr_t) git_attr_value(const char *attr);
  */
 GIT_EXTERN(int) git_attr_get(
 	const char **value_out,
-    git_repository *repo,
+	git_repository *repo,
 	uint32_t flags,
 	const char *path,
 	const char *name);
@@ -162,7 +162,7 @@ GIT_EXTERN(int) git_attr_get(
  * Then you could loop through the 3 values to get the settings for
  * the three attributes you asked about.
  *
- * @param values An array of num_attr entries that will have string
+ * @param values_out An array of num_attr entries that will have string
  *             pointers written into it for the values of the attributes.
  *             You should not modify or free the values that are written
  *             into this array (although of course, you should free the
@@ -199,8 +199,9 @@ typedef int (*git_attr_foreach_cb)(const char *name, const char *value, void *pa
  *             only once per attribute name, even if there are multiple
  *             rules for a given file.  The highest priority rule will be
  *             used.  Return a non-zero value from this to stop looping.
+ *             The value will be returned from `git_attr_foreach`.
  * @param payload Passed on as extra parameter to callback function.
- * @return 0 on success, GIT_EUSER on non-zero callback, or error code
+ * @return 0 on success, non-zero callback return value, or error code
  */
 GIT_EXTERN(int) git_attr_foreach(
 	git_repository *repo,
@@ -228,7 +229,7 @@ GIT_EXTERN(void) git_attr_cache_flush(
  * function allows you to add others.  For example, to add the default
  * macro, you would call:
  *
- *    git_attr_add_macro(repo, "binary", "-diff -crlf");
+ *     git_attr_add_macro(repo, "binary", "-diff -crlf");
  */
 GIT_EXTERN(int) git_attr_add_macro(
 	git_repository *repo,

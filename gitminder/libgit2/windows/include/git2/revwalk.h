@@ -87,12 +87,12 @@ GIT_EXTERN(void) git_revwalk_reset(git_revwalk *walker);
 /**
  * Mark a commit to start traversal from.
  *
- * The given OID must belong to a commit on the walked
+ * The given OID must belong to a committish on the walked
  * repository.
  *
  * The given commit will be used as one of the roots
  * when starting the revision walk. At least one commit
- * must be pushed the repository before a walk can
+ * must be pushed onto the walker before a walk can
  * be started.
  *
  * @param walk the walker being used for the traversal.
@@ -108,7 +108,10 @@ GIT_EXTERN(int) git_revwalk_push(git_revwalk *walk, const git_oid *id);
  * pattern will be pushed to the revision walker.
  *
  * A leading 'refs/' is implied if not present as well as a trailing
- * '/ *' if the glob lacks '?', '*' or '['.
+ * '/\*' if the glob lacks '?', '\*' or '['.
+ *
+ * Any references matching this glob which do not point to a
+ * committish will be ignored.
  *
  * @param walk the walker being used for the traversal
  * @param glob the glob pattern references should match
@@ -127,7 +130,7 @@ GIT_EXTERN(int) git_revwalk_push_head(git_revwalk *walk);
 /**
  * Mark a commit (and its ancestors) uninteresting for the output.
  *
- * The given OID must belong to a commit on the walked
+ * The given OID must belong to a committish on the walked
  * repository.
  *
  * The resolved commit and all its parents will be hidden from the
@@ -147,7 +150,10 @@ GIT_EXTERN(int) git_revwalk_hide(git_revwalk *walk, const git_oid *commit_id);
  * revision walk.
  *
  * A leading 'refs/' is implied if not present as well as a trailing
- * '/ *' if the glob lacks '?', '*' or '['.
+ * '/\*' if the glob lacks '?', '\*' or '['.
+ *
+ * Any references matching this glob which do not point to a
+ * committish will be ignored.
  *
  * @param walk the walker being used for the traversal
  * @param glob the glob pattern references should match
@@ -166,7 +172,7 @@ GIT_EXTERN(int) git_revwalk_hide_head(git_revwalk *walk);
 /**
  * Push the OID pointed to by a reference
  *
- * The reference must point to a commit.
+ * The reference must point to a committish.
  *
  * @param walk the walker being used for the traversal
  * @param refname the reference to push
@@ -177,7 +183,7 @@ GIT_EXTERN(int) git_revwalk_push_ref(git_revwalk *walk, const char *refname);
 /**
  * Hide the OID pointed to by a reference
  *
- * The reference must point to a commit.
+ * The reference must point to a committish.
  *
  * @param walk the walker being used for the traversal
  * @param refname the reference to hide
@@ -215,6 +221,29 @@ GIT_EXTERN(int) git_revwalk_next(git_oid *out, git_revwalk *walk);
  * @param sort_mode combination of GIT_SORT_XXX flags
  */
 GIT_EXTERN(void) git_revwalk_sorting(git_revwalk *walk, unsigned int sort_mode);
+
+/**
+ * Push and hide the respective endpoints of the given range.
+ *
+ * The range should be of the form
+ *   <commit>..<commit>
+ * where each <commit> is in the form accepted by 'git_revparse_single'.
+ * The left-hand commit will be hidden and the right-hand commit pushed.
+ *
+ * @param walk the walker being used for the traversal
+ * @param range the range
+ * @return 0 or an error code
+ *
+ */
+GIT_EXTERN(int) git_revwalk_push_range(git_revwalk *walk, const char *range);
+
+/**
+ * Simplify the history by first-parent
+ *
+ * No parents other than the first for each commit will be enqueued.
+ */
+GIT_EXTERN(void) git_revwalk_simplify_first_parent(git_revwalk *walk);
+
 
 /**
  * Free a revision walker previously allocated.

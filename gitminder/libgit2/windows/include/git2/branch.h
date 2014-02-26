@@ -38,61 +38,77 @@ GIT_BEGIN_DECL
  * validated for consistency. It should also not conflict with
  * an already existing branch name.
  *
- * @param target Object to which this branch should point. This object
- * must belong to the given `repo` and can either be a git_commit or a
- * git_tag. When a git_tag is being passed, it should be dereferencable
- * to a git_commit which oid will be used as the target of the branch.
+ * @param target Commit to which this branch should point. This object
+ * must belong to the given `repo`.
  *
  * @param force Overwrite existing branch.
+ *
+ * @param signature The identity that will used to populate the reflog entry
+ *
+ * @param log_message The one line long message to be appended to the reflog.
+ * If NULL, the default is "Branch: created"; if you want something more
+ * useful, provide a message.
  *
  * @return 0, GIT_EINVALIDSPEC or an error code.
  * A proper reference is written in the refs/heads namespace
  * pointing to the provided target commit.
  */
 GIT_EXTERN(int) git_branch_create(
-		git_reference **out,
-		git_repository *repo,
-		const char *branch_name,
-		const git_commit *target,
-		int force);
+	git_reference **out,
+	git_repository *repo,
+	const char *branch_name,
+	const git_commit *target,
+	int force,
+	const git_signature *signature,
+	const char *log_message);
 
 /**
  * Delete an existing branch reference.
  *
  * If the branch is successfully deleted, the passed reference
- * object will be freed and invalidated.
+ * object will be invalidated. The reference must be freed manually
+ * by the user.
  *
  * @param branch A valid reference representing a branch
  * @return 0 on success, or an error code.
  */
 GIT_EXTERN(int) git_branch_delete(git_reference *branch);
 
+/** Iterator type for branches */
+typedef struct git_branch_iterator git_branch_iterator;
+
 /**
- * Loop over all the branches and issue a callback for each one.
+ * Create an iterator which loops over the requested branches.
  *
- * If the callback returns a non-zero value, this will stop looping.
- *
+ * @param out the iterator
  * @param repo Repository where to find the branches.
- *
  * @param list_flags Filtering flags for the branch
  * listing. Valid values are GIT_BRANCH_LOCAL, GIT_BRANCH_REMOTE
  * or a combination of the two.
  *
- * @param branch_cb Callback to invoke per found branch.
- *
- * @param payload Extra parameter to callback function.
- *
- * @return 0 on success, GIT_EUSER on non-zero callback, or error code
+ * @return 0 on success  or an error code
  */
-GIT_EXTERN(int) git_branch_foreach(
-		git_repository *repo,
-		unsigned int list_flags,
-		int (*branch_cb)(
-			const char *branch_name,
-			git_branch_t branch_type,
-			void *payload),
-		void *payload
-);
+GIT_EXTERN(int) git_branch_iterator_new(
+	git_branch_iterator **out,
+	git_repository *repo,
+	git_branch_t list_flags);
+
+/**
+ * Retrieve the next branch from the iterator
+ *
+ * @param out the reference
+ * @param out_type the type of branch (local or remote-tracking)
+ * @param iter the branch iterator
+ * @return 0 on success, GIT_ITEROVER if there are no more branches or an error code.
+ */
+GIT_EXTERN(int) git_branch_next(git_reference **out, git_branch_t *out_type, git_branch_iterator *iter);
+
+/**
+ * Free a branch iterator
+ *
+ * @param iter the iterator to free
+ */
+GIT_EXTERN(void) git_branch_iterator_free(git_branch_iterator *iter);
 
 /**
  * Move/rename an existing local branch reference.
@@ -107,12 +123,19 @@ GIT_EXTERN(int) git_branch_foreach(
  *
  * @param force Overwrite existing branch.
  *
+ * @param signature The identity that will used to populate the reflog entry
+ *
+ * @param log_message The one line long message to be appended to the reflog
+ *
  * @return 0 on success, GIT_EINVALIDSPEC or an error code.
  */
 GIT_EXTERN(int) git_branch_move(
-		git_reference *branch,
-		const char *new_branch_name,
-		int force);
+	git_reference **out,
+	git_reference *branch,
+	const char *new_branch_name,
+	int force,
+	const git_signature *signature,
+	const char *log_message);
 
 /**
  * Lookup a branch by its name in a repository.
@@ -136,10 +159,10 @@ GIT_EXTERN(int) git_branch_move(
  * exists, GIT_EINVALIDSPEC, otherwise an error code.
  */
 GIT_EXTERN(int) git_branch_lookup(
-		git_reference **out,
-		git_repository *repo,
-		const char *branch_name,
-		git_branch_t branch_type);
+	git_reference **out,
+	git_repository *repo,
+	const char *branch_name,
+	git_branch_t branch_type);
 
 /**
  * Return the name of the given local or remote branch.
@@ -171,33 +194,40 @@ GIT_EXTERN(int) git_branch_name(const char **out,
  * @return 0 on success; GIT_ENOTFOUND when no remote tracking
  * reference exists, otherwise an error code.
  */
-GIT_EXTERN(int) git_branch_tracking(
-		git_reference **out,
-		git_reference *branch);
+GIT_EXTERN(int) git_branch_upstream(
+	git_reference **out,
+	git_reference *branch);
+
+/**
+ * Set the upstream configuration for a given local branch
+ *
+ * @param branch the branch to configure
+ *
+ * @param upstream_name remote-tracking or local branch to set as
+ * upstream. Pass NULL to unset.
+ *
+ * @return 0 or an error code
+ */
+GIT_EXTERN(int) git_branch_set_upstream(git_reference *branch, const char *upstream_name);
 
 /**
  * Return the name of the reference supporting the remote tracking branch,
  * given the name of a local branch reference.
  *
- * @param tracking_branch_name_out The user-allocated buffer which will be
- *     filled with the name of the reference. Pass NULL if you just want to
- *     get the needed size of the name of the reference as the output value.
- *
- * @param buffer_size Size of the `out` buffer in bytes.
+ * @param out Pointer to the user-allocated git_buf which will be
+ * filled with the name of the reference.
  *
  * @param repo the repository where the branches live
  *
- * @param canonical_branch_name name of the local branch.
+ * @param refname reference name of the local branch.
  *
- * @return number of characters in the reference name
- *     including the trailing NUL byte; GIT_ENOTFOUND when no remote tracking
- *     reference exists, otherwise an error code.
+ * @return 0, GIT_ENOTFOUND when no remote tracking reference exists,
+ *     otherwise an error code.
  */
-GIT_EXTERN(int) git_branch_tracking_name(
-	char *tracking_branch_name_out,
-	size_t buffer_size,
+GIT_EXTERN(int) git_branch_upstream_name(
+	git_buf *out,
 	git_repository *repo,
-	const char *canonical_branch_name);
+	const char *refname);
 
 /**
  * Determine if the current local branch is pointed at by HEAD.
@@ -208,32 +238,26 @@ GIT_EXTERN(int) git_branch_tracking_name(
  * error code otherwise.
  */
 GIT_EXTERN(int) git_branch_is_head(
-		git_reference *branch);
+	git_reference *branch);
 
 /**
  * Return the name of remote that the remote tracking branch belongs to.
  *
- * @param remote_name_out The user-allocated buffer which will be
- *     filled with the name of the remote. Pass NULL if you just want to
- *     get the needed size of the name of the remote as the output value.
- *
- * @param buffer_size Size of the `out` buffer in bytes.
+ * @param out Pointer to the user-allocated git_buf which will be filled iwth the name of the remote.
  *
  * @param repo The repository where the branch lives.
  *
- * @param branch The reference to the remote tracking branch.
+ * @param canonical_branch_name name of the remote tracking branch.
  *
- * @return Number of characters in the reference name
- *     including the trailing NUL byte; GIT_ENOTFOUND
- *     when no remote matching remote was gound,
+ * @return 0, GIT_ENOTFOUND
+ *     when no remote matching remote was found,
  *     GIT_EAMBIGUOUS when the branch maps to several remotes,
  *     otherwise an error code.
  */
 GIT_EXTERN(int) git_branch_remote_name(
-	char *remote_name_out,
-	size_t buffer_size,
+	git_buf *out,
 	git_repository *repo,
-	git_reference *branch);
+	const char *canonical_branch_name);
 
 /** @} */
 GIT_END_DECL

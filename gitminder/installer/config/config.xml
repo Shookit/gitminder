@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Installer>
+    <Name>Gitminder</Name>
+    <Version>0.1</Version>
+    <Title>Gitminder</Title>
+    <Publisher>shookit.com</Publisher>
+    <StartMenuDir>Gitminder</StartMenuDir>
+    <TargetDir>@rootDir@Program Files (x86)/gitminder</TargetDir>
+	<AllowSpaceInPath>True</AllowSpaceInPath>
+
+</Installer>

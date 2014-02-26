@@ -7,7 +7,7 @@
 #ifndef INCLUDE_git_cred_helpers_h__
 #define INCLUDE_git_cred_helpers_h__
 
-#include "git2/transport.h"
+#include "transport.h"
 
 /**
  * @file git2/cred_helpers.h
@@ -30,11 +30,11 @@ typedef struct git_cred_userpass_payload {
 /**
  * Stock callback usable as a git_cred_acquire_cb.  This calls
  * git_cred_userpass_plaintext_new unless the protocol has not specified
- * GIT_CREDTYPE_USERPASS_PLAINTEXT as an allowed type.
+ * `GIT_CREDTYPE_USERPASS_PLAINTEXT` as an allowed type.
  *
  * @param cred The newly created credential object.
  * @param url The resource for which we are demanding a credential.
- * @param username_from_url The username that was embedded in a "user@host"
+ * @param user_from_url The username that was embedded in a "user@host"
  *                          remote url, or NULL if not included.
  * @param allowed_types A bitmask stating which cred types are OK to return.
  * @param payload The payload provided when specifying this callback.  (This is

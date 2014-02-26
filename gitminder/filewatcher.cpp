@@ -52,7 +52,7 @@ void FileWatcher::directoryChangedSlot(QString)  //QString is the changed direct
     alternative_file_checker->start(10*60*1000);
 }
 void FileWatcher::file_changed_delay_timer_timeout(){
-    //Only emit the signal after 5 seconds so you don't have a bunch of unnecessary calls
+    //Only emit the signal after x seconds so you don't have a bunch of unnecessary calls
     emit fileChangedSignal(this->repoPath);
 }
 void FileWatcher::alternative_file_checker_timeout(){

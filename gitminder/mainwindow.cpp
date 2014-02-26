@@ -12,6 +12,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     setupSystemTray();
 
+    populateUI();
     updateAllWatchDirectoryData();
     setupFileWatchers();
     setupNotifyTimers();
@@ -77,8 +78,10 @@ void MainWindow::setupSystemTray(){
     QMenu * trayMenu = new QMenu(this);
     trayMenu->addAction(openAction);
     trayMenu->addAction(closeAction);
-    trayIcon.setContextMenu(trayMenu);
 
+    QIcon icon(":/images/icon_green.png");
+    trayIcon.setIcon(icon);
+    trayIcon.setContextMenu(trayMenu);
     trayIcon.show();
     connect(&trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
             this, SLOT(systemTrayClickedSlot(QSystemTrayIcon::ActivationReason)));
@@ -162,7 +165,6 @@ void MainWindow::fileChangedSlot(QString){  //QString is the repoPath
 
 
 void MainWindow::openAppSlot(){
-    populateUI();
     this->show();
     this->raise();
     this->setFocus();
@@ -211,25 +213,28 @@ void MainWindow::on_browse_clicked(){
 
 
 void MainWindow::on_add_clicked(){
-    QTreeWidgetItem * item = new QTreeWidgetItem();
     if (ui->checkBox->isChecked()){
         QDir dir(ui->lineEdit->text());
         QStringList entryList = dir.entryList(QDir::NoDotAndDotDot|QDir::Dirs);
         for(int i = 0; i<entryList.count(); ++i){
+            qDebug() << "hi";
+            QTreeWidgetItem * item = new QTreeWidgetItem();
             if (ui->treeWidget->findItems(dir.absolutePath() + "/" + entryList.at(i),0,0).count()==0){
-                item->setText(0, dir.absolutePath() + "/" + entryList.at(i));
+                item->setText(0,dir.absolutePath() + "/" + entryList.at(i));
+                //item->setText(1,repoStatusToText(gitRecursiveStatus(dir.absolutePath() + "/" + entryList.at(i))));
                 ui->treeWidget->addTopLevelItem(item);
             }
         }
-
-
     }
     else{
+        QTreeWidgetItem * item = new QTreeWidgetItem();
         item->setText(0,ui->lineEdit->text());
         item->setText(1,repoStatusToText(gitRecursiveStatus(ui->lineEdit->text())));
         ui->treeWidget->addTopLevelItem(item);
     }
     ui->lineEdit->clear();
+    ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
+    ui->treeWidget->resizeColumnToContents(0);
 }
 
 
@@ -265,6 +270,7 @@ void MainWindow::on_buttonBox_accepted(){
     //Hide
     this->hide();
 
+    populateUI();
     updateAllWatchDirectoryData();
     setupFileWatchers();
     setupNotifyTimers();

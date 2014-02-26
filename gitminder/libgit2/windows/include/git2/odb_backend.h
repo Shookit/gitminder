@@ -9,140 +9,125 @@
 
 #include "common.h"
 #include "types.h"
-#include "oid.h"
-#include "indexer.h"
 
 /**
  * @file git2/backend.h
  * @brief Git custom backend functions
- * @defgroup git_backend Git custom backend API
+ * @defgroup git_odb Git object database routines
  * @ingroup Git
  * @{
  */
 GIT_BEGIN_DECL
 
-struct git_odb_stream;
-struct git_odb_writepack;
+/*
+ * Constructors for in-box ODB backends.
+ */
 
 /**
- * Function type for callbacks from git_odb_foreach.
+ * Create a backend for the packfiles.
+ *
+ * @param out location to store the odb backend pointer
+ * @param objects_dir the Git repository's objects directory
+ *
+ * @return 0 or an error code
  */
-typedef int (*git_odb_foreach_cb)(const git_oid *id, void *payload);
+GIT_EXTERN(int) git_odb_backend_pack(git_odb_backend **out, const char *objects_dir);
 
 /**
- * An instance for a custom backend
+ * Create a backend for loose objects
+ *
+ * @param out location to store the odb backend pointer
+ * @param objects_dir the Git repository's objects directory
+ * @param compression_level zlib compression level to use
+ * @param do_fsync whether to do an fsync() after writing (currently ignored)
+ * @param dir_mode permissions to use creating a directory or 0 for defaults
+ * @param file_mode permissions to use creating a file or 0 for defaults
+ *
+ * @return 0 or an error code
  */
-struct git_odb_backend {
-	unsigned int version;
-	git_odb *odb;
+GIT_EXTERN(int) git_odb_backend_loose(
+	git_odb_backend **out,
+	const char *objects_dir,
+	int compression_level,
+	int do_fsync,
+	unsigned int dir_mode,
+	unsigned int file_mode);
 
-	/* read and read_prefix each return to libgit2 a buffer which
-	 * will be freed later. The buffer should be allocated using
-	 * the function git_odb_backend_malloc to ensure that it can
-	 * be safely freed later. */
-	int (* read)(
-			void **, size_t *, git_otype *,
-			struct git_odb_backend *,
-			const git_oid *);
-
-	/* To find a unique object given a prefix
-	 * of its oid.
-	 * The oid given must be so that the
-	 * remaining (GIT_OID_HEXSZ - len)*4 bits
-	 * are 0s.
-	 */
-	int (* read_prefix)(
-			git_oid *,
-			void **, size_t *, git_otype *,
-			struct git_odb_backend *,
-			const git_oid *,
-			size_t);
-
-	int (* read_header)(
-			size_t *, git_otype *,
-			struct git_odb_backend *,
-			const git_oid *);
-
-	/* The writer may assume that the object
-	 * has already been hashed and is passed
-	 * in the first parameter.
-	 */
-	int (* write)(
-			git_oid *,
-			struct git_odb_backend *,
-			const void *,
-			size_t,
-			git_otype);
-
-	int (* writestream)(
-			struct git_odb_stream **,
-			struct git_odb_backend *,
-			size_t,
-			git_otype);
-
-	int (* readstream)(
-			struct git_odb_stream **,
-			struct git_odb_backend *,
-			const git_oid *);
-
-	int (* exists)(
-			struct git_odb_backend *,
-			const git_oid *);
-
-	int (* refresh)(struct git_odb_backend *);
-
-	int (* foreach)(
-			struct git_odb_backend *,
-			git_odb_foreach_cb cb,
-			void *payload);
-
-	int (* writepack)(
-			struct git_odb_writepack **,
-			struct git_odb_backend *,
-			git_transfer_progress_callback progress_cb,
-			void *progress_payload);
-
-	void (* free)(struct git_odb_backend *);
-};
-
-#define GIT_ODB_BACKEND_VERSION 1
-#define GIT_ODB_BACKEND_INIT {GIT_ODB_BACKEND_VERSION}
+/**
+ * Create a backend out of a single packfile
+ *
+ * This can be useful for inspecting the contents of a single
+ * packfile.
+ *
+ * @param out location to store the odb backend pointer
+ * @param index_file path to the packfile's .idx file
+ *
+ * @return 0 or an error code
+ */
+GIT_EXTERN(int) git_odb_backend_one_pack(git_odb_backend **out, const char *index_file);
 
 /** Streaming mode */
-enum {
+typedef enum {
 	GIT_STREAM_RDONLY = (1 << 1),
 	GIT_STREAM_WRONLY = (1 << 2),
 	GIT_STREAM_RW = (GIT_STREAM_RDONLY | GIT_STREAM_WRONLY),
-};
+} git_odb_stream_t;
 
-/** A stream to read/write from a backend */
+/**
+ * A stream to read/write from a backend.
+ *
+ * This represents a stream of data being written to or read from a
+ * backend. When writing, the frontend functions take care of
+ * calculating the object's id and all `finalize_write` needs to do is
+ * store the object with the id it is passed.
+ */
 struct git_odb_stream {
-	struct git_odb_backend *backend;
+	git_odb_backend *backend;
 	unsigned int mode;
+	void *hash_ctx;
 
-	int (*read)(struct git_odb_stream *stream, char *buffer, size_t len);
-	int (*write)(struct git_odb_stream *stream, const char *buffer, size_t len);
-	int (*finalize_write)(git_oid *oid_p, struct git_odb_stream *stream);
-	void (*free)(struct git_odb_stream *stream);
+	size_t declared_size;
+	size_t received_bytes;
+
+	/**
+	 * Write at most `len` bytes into `buffer` and advance the stream.
+	 */
+	int (*read)(git_odb_stream *stream, char *buffer, size_t len);
+
+	/**
+	 * Write `len` bytes from `buffer` into the stream.
+	 */
+	int (*write)(git_odb_stream *stream, const char *buffer, size_t len);
+
+	/**
+	 * Store the contents of the stream as an object with the id
+	 * specified in `oid`.
+	 *
+	 * This method might not be invoked if:
+	 * - an error occurs earlier with the `write` callback,
+	 * - the object referred to by `oid` already exists in any backend, or
+	 * - the final number of received bytes differs from the size declared
+	 *   with `git_odb_open_wstream()`
+	 */
+	int (*finalize_write)(git_odb_stream *stream, const git_oid *oid);
+
+	/**
+	 * Free the stream's memory.
+	 *
+	 * This method might be called without a call to `finalize_write` if
+	 * an error occurs or if the object is already present in the ODB.
+	 */
+	void (*free)(git_odb_stream *stream);
 };
 
 /** A stream to write a pack file to the ODB */
 struct git_odb_writepack {
-	struct git_odb_backend *backend;
+	git_odb_backend *backend;
 
-	int (*add)(struct git_odb_writepack *writepack, const void *data, size_t size, git_transfer_progress *stats);
-	int (*commit)(struct git_odb_writepack *writepack, git_transfer_progress *stats);
-	void (*free)(struct git_odb_writepack *writepack);
+	int (*append)(git_odb_writepack *writepack, const void *data, size_t size, git_transfer_progress *stats);
+	int (*commit)(git_odb_writepack *writepack, git_transfer_progress *stats);
+	void (*free)(git_odb_writepack *writepack);
 };
-
-GIT_EXTERN(void *) git_odb_backend_malloc(git_odb_backend *backend, size_t len);
-
-/**
- * Constructors for in-box ODB backends.
- */
-GIT_EXTERN(int) git_odb_backend_pack(git_odb_backend **out, const char *objects_dir);
-GIT_EXTERN(int) git_odb_backend_loose(git_odb_backend **out, const char *objects_dir, int compression_level, int do_fsync);
-GIT_EXTERN(int) git_odb_backend_one_pack(git_odb_backend **out, const char *index_file);
 
 GIT_END_DECL
 

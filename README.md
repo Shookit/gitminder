@@ -8,29 +8,34 @@ gitminder requirements:
 * Qt5.0
 * libgit2
 
+Compilation notes
+=================
+*Make sure that git2.dll is in the source directory
+*Tested and working w/ VS2012 Express
+*Install the Windows 8.1 SDK to get Qt debugger
+*Make sure that 32/64-bit is the same for libgit2 and for gitminder itself
+
 Known issues / upcoming features
 ================================
 * gitminder currently can't check if the remote repo has been updated; this will be implemented eventually, but most of my repos are single-user, so I'm holding off on this one for a bit.
-* (Code-side, not a feature or issue) - Separate registry accesses references from rest of functions (bad coupling situation currently)
-
-Binary Releases
-===============
-* I will occasionally release binary .zip files, just on Windows initially (since I primarily develop on Windows right now).
-* These zip files are way bigger than necessary - I included all Qt .dll files, not just the ones that are actually necessary.
-* If you want a binary release for Linux, just let me know and I'll create one for you; I just don't have the energy to support a binary Linux release if no one wants it.
-* Otherwise, compilation is pretty simple if you want the latest version.
+* Improve efficiency of clean/dirty checks
 
 Compiling libgit2
 =================
-* To compile libgit, make sure you use the correct debug/release, and DO NOT use stdcall in the cmake configuration.
-* Make sure you use the same compiler as the one Qt is using.
-* Open the VS2010 Command Prompt (not a regular cmd prompt or the Windows SDK one!)
+* Requires cmake, Python 2.7
+* Make sure Python 2.7 is the default; 3.3 seemed to have some compilation issues w/ the clar testing framework
+* DO NOT use stdcall in the cmake configuration.
+* Make sure you use the same compiler as the one Qt is using (and same 32/64-bit arch).
+* Open the "Developer Command Prompt for VS2012" (not a regular cmd prompt or the Windows SDK one!)
 
 ``` bash
-	cd into the libgit2 directory
+	clone the current libgit2 source
 	mkdir build && cd build
-	cmake .. or cmake-gui ..
+	cmake ..  (use cmake-gui .. to customize compilation options)
 	cmake --build .
 	ctest -V
+	
+	To output lib files to a directory:
+	cmake .. -DCMAKE_INSTALL_PREFIX=./install
 	cmake --build . --target install
 ```

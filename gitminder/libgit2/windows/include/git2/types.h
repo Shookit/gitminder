@@ -92,6 +92,12 @@ typedef struct git_odb_stream git_odb_stream;
 /** A stream to write a packfile to the ODB */
 typedef struct git_odb_writepack git_odb_writepack;
 
+/** An open refs database handle. */
+typedef struct git_refdb git_refdb;
+
+/** A custom backend for refs */
+typedef struct git_refdb_backend git_refdb_backend;
+
 /**
  * Representation of an existing git repository,
  * including all its object contents
@@ -124,6 +130,9 @@ typedef struct git_treebuilder git_treebuilder;
 
 /** Memory representation of an index file. */
 typedef struct git_index git_index;
+
+/** An iterator for conflicts in the index. */
+typedef struct git_index_conflict_iterator git_index_conflict_iterator;
 
 /** Memory representation of a set of config files */
 typedef struct git_config git_config;
@@ -159,14 +168,25 @@ typedef struct git_signature {
 /** In-memory representation of a reference. */
 typedef struct git_reference git_reference;
 
+/** Iterator for references */
+typedef struct git_reference_iterator  git_reference_iterator;
+
+/** Merge heads, the input to merge */
+typedef struct git_merge_head git_merge_head;
+
+/** Merge result */
+typedef struct git_merge_result git_merge_result;
+
+/** Representation of a status collection */
+typedef struct git_status_list git_status_list;
+
+
 /** Basic type of any Git reference. */
 typedef enum {
 	GIT_REF_INVALID = 0, /** Invalid reference */
 	GIT_REF_OID = 1, /** A reference which points at an object id */
 	GIT_REF_SYMBOLIC = 2, /** A reference which points at another reference */
-	GIT_REF_PACKED = 4,
-	GIT_REF_HAS_PEEL = 8,
-	GIT_REF_LISTALL = GIT_REF_OID|GIT_REF_SYMBOLIC|GIT_REF_PACKED,
+	GIT_REF_LISTALL = GIT_REF_OID|GIT_REF_SYMBOLIC,
 } git_ref_t;
 
 /** Basic type of any Git branch. */
@@ -191,6 +211,136 @@ typedef struct git_push git_push;
 
 typedef struct git_remote_head git_remote_head;
 typedef struct git_remote_callbacks git_remote_callbacks;
+
+/**
+ * This is passed as the first argument to the callback to allow the
+ * user to see the progress.
+ *
+ * - total_objects: number of objects in the packfile being downloaded
+ * - indexed_objects: received objects that have been hashed
+ * - received_objects: objects which have been downloaded
+ * - local_objects: locally-available objects that have been injected
+ *    in order to fix a thin pack.
+ * - received-bytes: size of the packfile received up to now
+ */
+typedef struct git_transfer_progress {
+	unsigned int total_objects;
+	unsigned int indexed_objects;
+	unsigned int received_objects;
+	unsigned int local_objects;
+	unsigned int total_deltas;
+	unsigned int indexed_deltas;
+	size_t received_bytes;
+} git_transfer_progress;
+
+/**
+ * Type for progress callbacks during indexing.  Return a value less than zero
+ * to cancel the transfer.
+ *
+ * @param stats Structure containing information about the state of the transfer
+ * @param payload Payload provided by caller
+ */
+typedef int (*git_transfer_progress_callback)(const git_transfer_progress *stats, void *payload);
+
+/**
+ * Opaque structure representing a submodule.
+ */
+typedef struct git_submodule git_submodule;
+
+/**
+ * Submodule update values
+ *
+ * These values represent settings for the `submodule.$name.update`
+ * configuration value which says how to handle `git submodule update` for
+ * this submodule.  The value is usually set in the ".gitmodules" file and
+ * copied to ".git/config" when the submodule is initialized.
+ *
+ * You can override this setting on a per-submodule basis with
+ * `git_submodule_set_update()` and write the changed value to disk using
+ * `git_submodule_save()`.  If you have overwritten the value, you can
+ * revert it by passing `GIT_SUBMODULE_UPDATE_RESET` to the set function.
+ *
+ * The values are:
+ *
+ * - GIT_SUBMODULE_UPDATE_RESET: reset to the on-disk value.
+ * - GIT_SUBMODULE_UPDATE_CHECKOUT: the default; when a submodule is
+ *   updated, checkout the new detached HEAD to the submodule directory.
+ * - GIT_SUBMODULE_UPDATE_REBASE: update by rebasing the current checked
+ *   out branch onto the commit from the superproject.
+ * - GIT_SUBMODULE_UPDATE_MERGE: update by merging the commit in the
+ *   superproject into the current checkout out branch of the submodule.
+ * - GIT_SUBMODULE_UPDATE_NONE: do not update this submodule even when
+ *   the commit in the superproject is updated.
+ * - GIT_SUBMODULE_UPDATE_DEFAULT: not used except as static initializer
+ *   when we don't want any particular update rule to be specified.
+ */
+typedef enum {
+	GIT_SUBMODULE_UPDATE_RESET    = -1,
+
+	GIT_SUBMODULE_UPDATE_CHECKOUT = 1,
+	GIT_SUBMODULE_UPDATE_REBASE   = 2,
+	GIT_SUBMODULE_UPDATE_MERGE    = 3,
+	GIT_SUBMODULE_UPDATE_NONE     = 4,
+
+	GIT_SUBMODULE_UPDATE_DEFAULT  = 0
+} git_submodule_update_t;
+
+/**
+ * Submodule ignore values
+ *
+ * These values represent settings for the `submodule.$name.ignore`
+ * configuration value which says how deeply to look at the working
+ * directory when getting submodule status.
+ *
+ * You can override this value in memory on a per-submodule basis with
+ * `git_submodule_set_ignore()` and can write the changed value to disk
+ * with `git_submodule_save()`.  If you have overwritten the value, you
+ * can revert to the on disk value by using `GIT_SUBMODULE_IGNORE_RESET`.
+ *
+ * The values are:
+ *
+ * - GIT_SUBMODULE_IGNORE_RESET: reset to the on-disk value.
+ * - GIT_SUBMODULE_IGNORE_NONE: don't ignore any change - i.e. even an
+ *   untracked file, will mark the submodule as dirty.  Ignored files are
+ *   still ignored, of course.
+ * - GIT_SUBMODULE_IGNORE_UNTRACKED: ignore untracked files; only changes
+ *   to tracked files, or the index or the HEAD commit will matter.
+ * - GIT_SUBMODULE_IGNORE_DIRTY: ignore changes in the working directory,
+ *   only considering changes if the HEAD of submodule has moved from the
+ *   value in the superproject.
+ * - GIT_SUBMODULE_IGNORE_ALL: never check if the submodule is dirty
+ * - GIT_SUBMODULE_IGNORE_DEFAULT: not used except as static initializer
+ *   when we don't want any particular ignore rule to be specified.
+ */
+typedef enum {
+	GIT_SUBMODULE_IGNORE_RESET     = -1, /* reset to on-disk value */
+
+	GIT_SUBMODULE_IGNORE_NONE      = 1,  /* any change or untracked == dirty */
+	GIT_SUBMODULE_IGNORE_UNTRACKED = 2,  /* dirty if tracked files change */
+	GIT_SUBMODULE_IGNORE_DIRTY     = 3,  /* only dirty if HEAD moved */
+	GIT_SUBMODULE_IGNORE_ALL       = 4,  /* never dirty */
+
+	GIT_SUBMODULE_IGNORE_DEFAULT   = 0
+} git_submodule_ignore_t;
+
+/**
+ * Options for submodule recurse.
+ *
+ * Represent the value of `submodule.$name.fetchRecurseSubmodules`
+ *
+ * * GIT_SUBMODULE_RECURSE_RESET - reset to the on-disk value
+ * * GIT_SUBMODULE_RECURSE_NO    - do no recurse into submodules
+ * * GIT_SUBMODULE_RECURSE_YES   - recurse into submodules
+ * * GIT_SUBMODULE_RECURSE_ONDEMAND - recurse into submodules only when
+ *                                    commit not already in local clone
+ */
+typedef enum {
+	GIT_SUBMODULE_RECURSE_RESET = -1,
+
+	GIT_SUBMODULE_RECURSE_NO = 0,
+	GIT_SUBMODULE_RECURSE_YES = 1,
+	GIT_SUBMODULE_RECURSE_ONDEMAND = 2,
+} git_submodule_recurse_t;
 
 /** @} */
 GIT_END_DECL

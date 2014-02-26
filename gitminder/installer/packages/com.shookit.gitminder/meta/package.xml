@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package>
+    <DisplayName>Gitminder</DisplayName>
+    <Description>Install gitminder core files.</Description>
+    <Version>0.1</Version>
+    <ReleaseDate>2014-02-26</ReleaseDate>
+    <Name>com.shookit.gitminder</Name>
+ 
+    <Default>script</Default>
+    <Script>installscript.qs</Script>
+
+</Package>

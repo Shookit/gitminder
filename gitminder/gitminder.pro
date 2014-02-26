@@ -28,6 +28,7 @@ OTHER_FILES += \
 RESOURCES += \
     resource.qrc
 
+RC_FILE = gitminder.rc
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/libgit2/windows/lib/ -lgit2
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/libgit2/windows/lib/ -lgit2

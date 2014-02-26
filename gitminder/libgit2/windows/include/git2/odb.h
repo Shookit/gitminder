@@ -10,8 +10,6 @@
 #include "common.h"
 #include "types.h"
 #include "oid.h"
-#include "odb_backend.h"
-#include "indexer.h"
 
 /**
  * @file git2/odb.h
@@ -21,6 +19,11 @@
  * @{
  */
 GIT_BEGIN_DECL
+
+/**
+ * Function type for callbacks from git_odb_foreach.
+ */
+typedef int (*git_odb_foreach_cb)(const git_oid *id, void *payload);
 
 /**
  * Create a new object database with no backends.
@@ -51,42 +54,6 @@ GIT_EXTERN(int) git_odb_new(git_odb **out);
  * @return 0 or an error code
  */
 GIT_EXTERN(int) git_odb_open(git_odb **out, const char *objects_dir);
-
-/**
- * Add a custom backend to an existing Object DB
- *
- * The backends are checked in relative ordering, based on the
- * value of the `priority` parameter.
- *
- * Read <odb_backends.h> for more information.
- *
- * @param odb database to add the backend to
- * @param backend pointer to a git_odb_backend instance
- * @param priority Value for ordering the backends queue
- * @return 0 on success; error code otherwise
- */
-GIT_EXTERN(int) git_odb_add_backend(git_odb *odb, git_odb_backend *backend, int priority);
-
-/**
- * Add a custom backend to an existing Object DB; this
- * backend will work as an alternate.
- *
- * Alternate backends are always checked for objects *after*
- * all the main backends have been exhausted.
- *
- * The backends are checked in relative ordering, based on the
- * value of the `priority` parameter.
- *
- * Writing is disabled on alternate backends.
- *
- * Read <odb_backends.h> for more information.
- *
- * @param odb database to add the backend to
- * @param backend pointer to a git_odb_backend instance
- * @param priority Value for ordering the backends queue
- * @return 0 on success; error code otherwise
- */
-GIT_EXTERN(int) git_odb_add_alternate(git_odb *odb, git_odb_backend *backend, int priority);
 
 /**
  * Add an on-disk alternate to an existing Object DB.
@@ -153,7 +120,7 @@ GIT_EXTERN(int) git_odb_read(git_odb_object **out, git_odb *db, const git_oid *i
  * @param db database to search for the object in.
  * @param short_id a prefix of the id of the object to read.
  * @param len the length of the prefix
- * @return 
+ * @return
  * - 0 if the object was read;
  * - GIT_ENOTFOUND if the object is not in the database.
  * - GIT_EAMBIGUOUS if the prefix is ambiguous (several objects match the prefix)
@@ -222,7 +189,7 @@ GIT_EXTERN(int) git_odb_refresh(struct git_odb *db);
  * @param db database to use
  * @param cb the callback to call for each object
  * @param payload data to pass to the callback
- * @return 0 on success, GIT_EUSER on non-zero callback, or error code
+ * @return 0 on success, non-zero callback return value, or error code
  */
 GIT_EXTERN(int) git_odb_foreach(git_odb *db, git_odb_foreach_cb cb, void *payload);
 
@@ -252,18 +219,12 @@ GIT_EXTERN(int) git_odb_write(git_oid *out, git_odb *odb, const void *data, size
  * The type and final length of the object must be specified
  * when opening the stream.
  *
- * The returned stream will be of type `GIT_STREAM_WRONLY` and
- * will have the following methods:
+ * The returned stream will be of type `GIT_STREAM_WRONLY`, and it
+ * won't be effective until `git_odb_stream_finalize_write` is called
+ * and returns without an error
  *
- *		- stream->write: write `n` bytes into the stream
- *		- stream->finalize_write: close the stream and store the object in
- *			the odb
- *		- stream->free: free the stream
- *
- * The streaming write won't be effective until `stream->finalize_write`
- * is called and returns without an error
- *
- * The stream must always be free'd or will leak memory.
+ * The stream must always be freed when done with `git_odb_stream_free` or
+ * will leak memory.
  *
  * @see git_odb_stream
  *
@@ -274,6 +235,48 @@ GIT_EXTERN(int) git_odb_write(git_oid *out, git_odb *odb, const void *data, size
  * @return 0 if the stream was created; error code otherwise
  */
 GIT_EXTERN(int) git_odb_open_wstream(git_odb_stream **out, git_odb *db, size_t size, git_otype type);
+
+/**
+ * Write to an odb stream
+ *
+ * This method will fail if the total number of received bytes exceeds the
+ * size declared with `git_odb_open_wstream()`
+ *
+ * @param stream the stream
+ * @param buffer the data to write
+ * @param len the buffer's length
+ * @return 0 if the write succeeded; error code otherwise
+ */
+GIT_EXTERN(int) git_odb_stream_write(git_odb_stream *stream, const char *buffer, size_t len);
+
+/**
+ * Finish writing to an odb stream
+ *
+ * The object will take its final name and will be available to the
+ * odb.
+ *
+ * This method will fail if the total number of received bytes
+ * differs from the size declared with `git_odb_open_wstream()`
+ *
+ * @param out pointer to store the resulting object's id
+ * @param stream the stream
+ * @return 0 on success; an error code otherwise
+ */
+GIT_EXTERN(int) git_odb_stream_finalize_write(git_oid *out, git_odb_stream *stream);
+
+/**
+ * Read from an odb stream
+ *
+ * Most backends don't implement streaming reads
+ */
+GIT_EXTERN(int) git_odb_stream_read(git_odb_stream *stream, char *buffer, size_t len);
+
+/**
+ * Free an odb stream
+ *
+ * @param stream the stream to free
+ */
+GIT_EXTERN(void) git_odb_stream_free(git_odb_stream *stream);
 
 /**
  * Open a stream to read an object from the ODB
@@ -355,6 +358,20 @@ GIT_EXTERN(int) git_odb_hash(git_oid *out, const void *data, size_t len, git_oty
 GIT_EXTERN(int) git_odb_hashfile(git_oid *out, const char *path, git_otype type);
 
 /**
+ * Create a copy of an odb_object
+ *
+ * The returned copy must be manually freed with `git_odb_object_free`.
+ * Note that because of an implementation detail, the returned copy will be
+ * the same pointer as `source`: the object is internally refcounted, so the
+ * copy still needs to be freed twice.
+ *
+ * @param dest pointer where to store the copy
+ * @param source object to copy
+ * @return 0 or an error code
+ */
+GIT_EXTERN(int) git_odb_object_dup(git_odb_object **dest, git_odb_object *source);
+
+/**
  * Close an ODB object
  *
  * This method must always be called once a `git_odb_object` is no
@@ -405,6 +422,60 @@ GIT_EXTERN(size_t) git_odb_object_size(git_odb_object *object);
  * @return the type
  */
 GIT_EXTERN(git_otype) git_odb_object_type(git_odb_object *object);
+
+/**
+ * Add a custom backend to an existing Object DB
+ *
+ * The backends are checked in relative ordering, based on the
+ * value of the `priority` parameter.
+ *
+ * Read <odb_backends.h> for more information.
+ *
+ * @param odb database to add the backend to
+ * @param backend pointer to a git_odb_backend instance
+ * @param priority Value for ordering the backends queue
+ * @return 0 on success; error code otherwise
+ */
+GIT_EXTERN(int) git_odb_add_backend(git_odb *odb, git_odb_backend *backend, int priority);
+
+/**
+ * Add a custom backend to an existing Object DB; this
+ * backend will work as an alternate.
+ *
+ * Alternate backends are always checked for objects *after*
+ * all the main backends have been exhausted.
+ *
+ * The backends are checked in relative ordering, based on the
+ * value of the `priority` parameter.
+ *
+ * Writing is disabled on alternate backends.
+ *
+ * Read <odb_backends.h> for more information.
+ *
+ * @param odb database to add the backend to
+ * @param backend pointer to a git_odb_backend instance
+ * @param priority Value for ordering the backends queue
+ * @return 0 on success; error code otherwise
+ */
+GIT_EXTERN(int) git_odb_add_alternate(git_odb *odb, git_odb_backend *backend, int priority);
+
+/**
+ * Get the number of ODB backend objects
+ *
+ * @param odb object database
+ * @return number of backends in the ODB
+ */
+GIT_EXTERN(size_t) git_odb_num_backends(git_odb *odb);
+
+/**
+ * Lookup an ODB backend object by index
+ *
+ * @param out output pointer to ODB backend at pos
+ * @param odb object database
+ * @param pos index into object database backend list
+ * @return 0 on success; GIT_ENOTFOUND if pos is invalid; other errors < 0
+ */
+GIT_EXTERN(int) git_odb_get_backend(git_odb_backend **out, git_odb *odb, size_t pos);
 
 /** @} */
 GIT_END_DECL
