@@ -175,6 +175,7 @@ void MainWindow::updateAllWatchDirectoryRegistry(){
         updateWatchDirectoryRegistry(settings.value("directory").toString());
     }
     settings.endArray();
+    qDebug()<<"Done updating statuses.";
 }
 
 
