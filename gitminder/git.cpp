@@ -1,182 +1,97 @@
 #include "git.h"
+#include <QSettings>
+#include <QDateTime>
+#include <git2.h>
+#include <QDebug>
 
-int gitRecursiveStatus(QString repoPath){
+int getRepoStatus(QString repoPath){
+    qDebug() << "Updating repo status...";
     git_repository * repo;
 
     int openRet = git_repository_open(&repo, repoPath.toStdString().c_str());
     if (openRet < 0){
-        //Invalid
-        return -1;
+        return INVALID;
     }
 
-    int numDirty = 0;
-    git_status_foreach(repo, &directoryChangedCallback, &numDirty);
+    git_status_list *status;
+    git_status_options statusopt = GIT_STATUS_OPTIONS_INIT;
+    statusopt.show  = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
+    statusopt.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED | GIT_STATUS_OPT_RENAMES_HEAD_TO_INDEX | GIT_STATUS_OPT_SORT_CASE_SENSITIVELY;
+
+    git_status_list_new(&status, repo, &statusopt);
+    int numDirty = git_status_list_entrycount(status);
+
+    git_status_list_free(status);
     git_repository_free(repo);
 
     if (numDirty>0){
-        //Dirty
-        return 1;
+        return DIRTY;
     }
     else{
-        //Clean
-        return 0;
+        return CLEAN;
     }
 }
 
 
-int directoryChangedCallback(const char *fileName, unsigned int git_status_t, void * numDirty){
-    /* A combination of these values will be returned to indicate the status of
-    * a file.  Status compares the working directory, the index, and the
-    * current HEAD of the repository.  The `GIT_STATUS_INDEX` set of flags
-    * represents the status of file in the index relative to the HEAD, and the
-    * `GIT_STATUS_WT` set of flags represent the status of the file in the
-    * working directory relative to the index.*/
+char * getCommitID(QString repoPath){
+    git_revwalk * walk;
+    git_repository * repo;
+    git_oid oid;
 
-    if(git_status_t!=GIT_STATUS_IGNORED){
-        int *num = (int*) numDirty;
-        *num = *num + 1;
+    git_repository_open(&repo, repoPath.toStdString().c_str());
+    git_revwalk_new(&walk, repo);
+    git_revwalk_push_head(walk);
+    git_revwalk_next(&oid, walk);
+    git_revwalk_free(walk);
+    git_repository_free(repo);
 
-        if (git_status_t == (1u << 0)){
-            qDebug() << "none"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_INDEX_NEW){
-            qDebug() << "GIT_STATUS_INDEX_NEW"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_INDEX_MODIFIED){
-            qDebug() << "GIT_STATUS_INDEX_MODIFIED"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_INDEX_DELETED){
-            qDebug() << "GIT_STATUS_INDEX_DELETED"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_INDEX_RENAMED){
-            qDebug() << "GIT_STATUS_INDEX_RENAMED"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_INDEX_TYPECHANGE){
-            qDebug() << "GIT_STATUS_INDEX_TYPECHANGE"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_WT_NEW){
-            qDebug() << "GIT_STATUS_WT_NEW"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_WT_MODIFIED){
-            qDebug() << "GIT_STATUS_WT_MODIFIED"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_WT_DELETED){
-            qDebug() << "GIT_STATUS_WT_DELETED"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_WT_TYPECHANGE){
-            qDebug() << "GIT_STATUS_WT_TYPECHANGE"  << git_status_t << fileName ;
-        }else if (git_status_t == GIT_STATUS_IGNORED){
-            qDebug() << "GIT_STATUS_IGNORED"  << git_status_t << fileName ;
-        }
-    }
-    return 0;
-}
 
-QMap<QString, QString> getRepoSettings(QString repoPath){
-    QSettings settings;
-    QMap<QString, QString> repoSettings;
-
-    int size = settings.beginReadArray("watch_directories");
-    for (int i = 0; i < size; ++i) {
-        settings.setArrayIndex(i);
-        if (settings.value("directory").toString().compare(repoPath)==0){
-            repoSettings.insert("status", settings.value("status").toString());
-            repoSettings.insert("commit", settings.value("commit").toString());
-            repoSettings.insert("timestamp", settings.value("timestamp").toString());
-        }
-    }
-    settings.endArray();
-    return repoSettings;
+    char * commit_id = new char[41]; //Commit ID
+    return git_oid_tostr(commit_id, 41, &oid);
 }
 
 
-void updateRepoSettings(QMap<QString, QString> repoSettings){
-    QSettings settings;
+QString getFileStatus(QString repoPath, QString filePath){
+    git_repository * repo;
+    unsigned int status_int=0;
 
-    int size = settings.beginReadArray("watch_directories");
-    for (int i = 0; i < size; ++i) {
-        settings.setArrayIndex(i);
-        if (settings.value("directory").toString().compare(repoSettings["directory"])==0){
-            if (repoSettings.contains("status"))
-                settings.setValue("status", repoSettings["status"]);
-
-            if (repoSettings.contains("commit"))
-                settings.setValue("commit", repoSettings["commit"]);
-
-            if (repoSettings.contains("timestamp"))
-                settings.setValue("timestamp", repoSettings["timestamp"]);
-        }
+    //Get file name alone
+    QStringList repoList = repoPath.split("/");
+    QStringList fileList = filePath.split("/");
+    while(repoList.length() > 0 && fileList.length() > 0 && repoList[0] == fileList[0]){
+        repoList.removeFirst();
+        fileList.removeFirst();
     }
-    settings.endArray();
-}
-
-
-void updateAllWatchDirectoryData(){
-    QSettings settings;
-    int size = settings.beginReadArray("watch_directories");
-    for (int i = 0; i < size; ++i) {
-        settings.setArrayIndex(i);
-        updateWatchDirectoryData(settings.value("directory").toString());
+    QString truncFile;
+    for (int i=0; i<fileList.length(); i++){
+        truncFile += fileList[i] + "/";
     }
-    settings.endArray();
-}
+    truncFile=truncFile.remove(truncFile.length()-1, 1);
 
 
-void updateWatchDirectoryData(QString repoPath){
-    QMap<QString,QString> repoSettings;
-    repoSettings["directory"] = repoPath;
+    //Determine status
+    git_repository_open(&repo, repoPath.toStdString().c_str());
+    git_status_file(&status_int, repo, truncFile.toStdString().c_str());
 
-    int repoStatus = gitRecursiveStatus(repoPath);
+    git_repository_free(repo);
 
-    if (repoStatus == -1){
-        //If invalid
-        repoSettings["status"] = "invalid";
+
+    qDebug() << repoPath << truncFile << status_int;
+    if (status_int == 0){
+        return "Clean";
     }
     else{
-        //If valid
-        git_revwalk * walk;
-        git_repository * repo;
-        git_oid oid;
-
-        git_repository_open(&repo, repoPath.toStdString().c_str());
-        git_revwalk_new(&walk, repo);
-        git_revwalk_push_head(walk);
-        git_revwalk_next(&oid, walk);
-        git_revwalk_free(walk);
-
-        char * commit_id = new char[41]; //Commit ID
-        git_oid_tostr(commit_id, 41, &oid);
-
-        if(repoStatus == 0){
-            //If clean
-            repoSettings["commit"] = commit_id;
-            repoSettings["status"] = "clean";
-        }else if(repoStatus == 1){
-            //If dirty
-            repoSettings["status"] = "dirty";
-            QString prevCommitId = getRepoSettings(repoPath)["commit"];
-
-            if (strcmp(prevCommitId.toStdString().c_str(), commit_id) != 0){
-                //If different commit ID
-                repoSettings["commit"] = commit_id;
-                repoSettings["timestamp"] = QString::number(QDateTime::currentMSecsSinceEpoch()/1000);
-            }
-            else{
-                //If same commit ID
-                QString prevStatus = getRepoSettings(repoPath)["status"];
-                if (prevStatus.compare("dirty") == 0){
-                    //If previously dirty
-                }
-                else if (prevStatus.compare("clean") == 0){
-                    //If previously clean
-                    repoSettings["commit"] = commit_id;
-                    repoSettings["timestamp"] = QString::number(QDateTime::currentMSecsSinceEpoch()/1000);
-                }
-            }
-        }
-        delete[] commit_id;
-        git_repository_free(repo);
+        return "Dirty";
     }
-    updateRepoSettings(repoSettings);
 }
+
 
 QString repoStatusToText(int repoStatus){
-    if(repoStatus == 0){
+    if(repoStatus == CLEAN){
         return "Clean";
-    }else if(repoStatus == 1){
+    }else if(repoStatus == DIRTY){
         return "Dirty";
-    }else if(repoStatus == -1){
+    }else if(repoStatus == INVALID){
         return "Invalid";
     }
     return "";

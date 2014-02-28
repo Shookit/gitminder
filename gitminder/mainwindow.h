@@ -2,23 +2,10 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QSystemTrayIcon>
-#include <QSettings>
-#include <QFileDialog>
-#include <QDebug>
-#include <QSystemTrayIcon>
-#include <QMenu>
-#include <QFuture>
-#include <QThread>
-#include <QtConcurrent/QtConcurrent>
 #include <QLinkedList>
-#include <QMap>
-#include <QFileSystemWatcher>
-#include <git2.h>
-#include "git.h"
-#include "ui_mainwindow.h"
-#include "filewatcher.h"
+#include <QSystemTrayIcon>
 #include "notifytimer.h"
+
 
 namespace Ui {
 class MainWindow;
@@ -29,11 +16,10 @@ class FileWatcher;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-    
+
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
-    void updateWatchDirectoryData(QString repoPath);
 
 private:
     QLinkedList<FileWatcher*> gitWatchers;
@@ -42,13 +28,18 @@ private:
 
     void setupSystemTray();
     void setupFileWatchers();
-    void populateUI();
+    void populateUIFromRegistry();
     void setupNotifyTimers();
     void updateSystemTray();
+    void updateWatchDirectoryRegistry(QString repoPath);
+    void updateRepoSettings(QMap<QString, QString> repoSettings);
+    void updateAllWatchDirectoryRegistry();
+    QMap<QString, QString> getRepoSettings(QString repoPath);
 
 private slots:
     void trayNotifySlot(QString);
-    void fileChangedSlot(QString);
+    void fileChangedSlot(QString, QString);
+    void periodicWatcherSlot(QString repoPath);
     void systemTrayClickedSlot(QSystemTrayIcon::ActivationReason);
     void openAppSlot();
     void exitAppSlot();

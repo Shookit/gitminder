@@ -1,5 +1,13 @@
+#include <QSettings>
+#include <QFileDialog>
+#include <QMenu>
+#include <QDateTime>
+#include <QDebug>
+#include <git2.h>
 #include "mainwindow.h"
-
+#include "git.h"
+#include "ui_mainwindow.h"
+#include "filewatcher.h"
 
 //MainWindow Constructor
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow){
@@ -12,11 +20,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     setupSystemTray();
 
-    populateUI();
-    updateAllWatchDirectoryData();
+    updateAllWatchDirectoryRegistry();
+    populateUIFromRegistry();
+    updateSystemTray();
     setupFileWatchers();
     setupNotifyTimers();
-    updateSystemTray();
 
     ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
     ui->treeWidget->resizeColumnToContents(0);
@@ -45,7 +53,8 @@ void MainWindow::setupFileWatchers(){
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
         gitWatchers.append(new FileWatcher(settings.value("directory").toString()));
-        connect(gitWatchers.last(), SIGNAL(fileChangedSignal(QString)), this, SLOT(fileChangedSlot(QString)));
+        connect(gitWatchers.last(), SIGNAL(fileChangedSignal(QString ,QString)), this, SLOT(fileChangedSlot(QString, QString)));
+        connect(gitWatchers.last(), SIGNAL(periodicSignal(QString)), this, SLOT(periodicWatcherSlot(QString)));
     }
     settings.endArray();
 }
@@ -56,16 +65,19 @@ void MainWindow::setupNotifyTimers(){
     notifyTimers.clear();
 
     QSettings settings;
+    int commitReminderTime = settings.value("commit_reminder_time").toInt();
+
     int size = settings.beginReadArray("watch_directories");
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
-        if (settings.value("status") == "dirty"){
-            notifyTimers.append(new NotifyTimer(settings.value("directory").toString(), settings.value("timestamp").toString()));
+        if (settings.value("status") == "Dirty"){
+            notifyTimers.append(new NotifyTimer(settings.value("directory").toString(), settings.value("timestamp").toInt(), commitReminderTime));
             connect(notifyTimers.last(), SIGNAL(notifyTimeoutSignal(QString)), this, SLOT(trayNotifySlot(QString)));
         }
     }
     settings.endArray();
 }
+
 
 
 void MainWindow::setupSystemTray(){
@@ -91,13 +103,13 @@ void MainWindow::setupSystemTray(){
 void MainWindow::updateSystemTray(){
     QSettings settings;
 
-    int delayNotification = settings.value("commit_reminder_time").toInt()*60;
+    int delayNotification = settings.value("commit_reminder_time").toInt();
     int size = settings.beginReadArray("watch_directories");
     bool changed = false;
     for (int i = 0; i < size; ++i) {
         settings.setArrayIndex(i);
-        if (settings.value("status") == "dirty"){
-            int duration_dirty = QDateTime::currentMSecsSinceEpoch ()/1000 - settings.value("timestamp").toInt() ;
+        if (settings.value("status") == "Dirty"){
+            int duration_dirty = QDateTime::currentMSecsSinceEpoch()/1000 - settings.value("timestamp").toInt() ;
             if (duration_dirty > delayNotification){
                 QIcon icon(":/images/icon_red.png");
                 trayIcon.setIcon(icon);
@@ -114,7 +126,7 @@ void MainWindow::updateSystemTray(){
 }
 
 
-void MainWindow::populateUI(){
+void MainWindow::populateUIFromRegistry(){
     QSettings settings;
     ui->treeWidget->clear();
     ui->commit_reminder->setChecked(settings.value("commit_reminder").toBool());
@@ -129,20 +141,101 @@ void MainWindow::populateUI(){
         QTreeWidgetItem * item = new QTreeWidgetItem();
 
         item->setText(0,settings.value("directory").toString());
-
-        int gitStatus = gitRecursiveStatus(settings.value("directory").toString());
-        if(gitStatus == 0){
-            item->setText(1, "Clean");
-        }else if(gitStatus == 1){
-            item->setText(1, "Dirty");
-        }else if(gitStatus == -1){
-            item->setText(1, "Invalid");
-        }
-
+        item->setText(1, settings.value("status").toString());
         ui->treeWidget->addTopLevelItem(item);
     }
     settings.endArray();
     ui->treeWidget->resizeColumnToContents(0);
+}
+
+
+QMap<QString, QString> MainWindow::getRepoSettings(QString repoPath){
+    QSettings settings;
+    QMap<QString, QString> repoSettings;
+
+    int size = settings.beginReadArray("watch_directories");
+    for (int i = 0; i < size; ++i) {
+        settings.setArrayIndex(i);
+        if (settings.value("directory").toString().compare(repoPath)==0){
+            repoSettings.insert("status", settings.value("status").toString());
+            repoSettings.insert("commit", settings.value("commit").toString());
+            repoSettings.insert("timestamp", settings.value("timestamp").toString());
+        }
+    }
+    settings.endArray();
+    return repoSettings;
+}
+
+
+void MainWindow::updateAllWatchDirectoryRegistry(){
+    QSettings settings;
+    int size = settings.beginReadArray("watch_directories");
+    for (int i = 0; i < size; ++i) {
+        settings.setArrayIndex(i);
+        updateWatchDirectoryRegistry(settings.value("directory").toString());
+    }
+    settings.endArray();
+}
+
+
+void MainWindow::updateWatchDirectoryRegistry(QString repoPath){
+    QMap<QString,QString> repoSettings;
+    repoSettings["directory"] = repoPath;
+
+    int repoStatus = getRepoStatus(repoPath);
+
+    if (repoStatus == INVALID){
+        repoSettings["status"] = "Invalid";
+    }else if(repoStatus == CLEAN){
+        char * cur_commit_id = getCommitID(repoPath);
+        repoSettings["commit"] = cur_commit_id;
+        repoSettings["status"] = "Clean";
+        delete[] cur_commit_id;
+    }else if(repoStatus == DIRTY){
+        char * cur_commit_id = getCommitID(repoPath);
+        repoSettings["status"] = "Dirty";
+        QString prevCommitId = getRepoSettings(repoPath)["commit"];
+
+        if (strcmp(prevCommitId.toStdString().c_str(), cur_commit_id) != 0){
+            //If different commit ID
+            repoSettings["commit"] = cur_commit_id;
+            repoSettings["timestamp"] = QString::number(QDateTime::currentMSecsSinceEpoch()/1000);
+        }
+        else{
+            //If same commit ID
+            QString prevStatus = getRepoSettings(repoPath)["status"];
+            if (prevStatus.compare("Dirty") == 0){
+                //If previously dirty
+            }
+            else if (prevStatus.compare("Clean") == 0){
+                //If previously clean
+                repoSettings["commit"] = cur_commit_id;
+                repoSettings["timestamp"] = QString::number(QDateTime::currentMSecsSinceEpoch()/1000);
+            }
+        }
+        delete[] cur_commit_id;
+    }
+    updateRepoSettings(repoSettings);
+}
+
+void MainWindow::updateRepoSettings(QMap<QString, QString> repoSettings){
+    QSettings settings;
+
+    int size = settings.beginReadArray("watch_directories");
+    for (int i = 0; i < size; ++i) {
+        settings.setArrayIndex(i);
+        if (settings.value("directory").toString().compare(repoSettings["directory"])==0){
+            if (repoSettings.contains("status"))
+                settings.setValue("status", repoSettings["status"]);
+
+            if (repoSettings.contains("commit"))
+                settings.setValue("commit", repoSettings["commit"]);
+
+            if (repoSettings.contains("timestamp"))
+                settings.setValue("timestamp", repoSettings["timestamp"]);
+        }
+    }
+    settings.endArray();
 }
 
 
@@ -155,12 +248,60 @@ void MainWindow::trayNotifySlot(QString repoPath){
 }
 
 
-void MainWindow::fileChangedSlot(QString){  //QString is the repoPath
-    populateUI();
-    updateAllWatchDirectoryData();
+void MainWindow::fileChangedSlot(QString repoPath, QString changedFile){  //QString is the repoPath
+    char * cur_commit_id = getCommitID(repoPath);
+    QString prevCommitId = getRepoSettings(repoPath)["commit"];
+
+    //If different commit_id, just rescan whole repo
+    if (strcmp(prevCommitId.toStdString().c_str(), cur_commit_id) != 0){
+        updateWatchDirectoryRegistry(repoPath);
+        populateUIFromRegistry();
+        updateSystemTray();
+        setupFileWatchers();
+        setupNotifyTimers();
+    }
+    else{
+        QString prevRepoStatus = getRepoSettings(repoPath)["status"];
+        QString curChangedFileStatus= getFileStatus(repoPath, changedFile);
+
+        qDebug() << curChangedFileStatus;
+
+        //If file is clean, rescan repo (unsure about other files)
+        if (curChangedFileStatus=="Clean"){
+            updateWatchDirectoryRegistry(repoPath);
+            populateUIFromRegistry();
+            updateSystemTray();
+            setupFileWatchers();
+            setupNotifyTimers();
+        }
+
+
+        //If file is currently dirty & previously clean, mark dirty (became dirty)
+        else if (curChangedFileStatus=="Dirty" && prevRepoStatus == "Clean"){
+            updateWatchDirectoryRegistry(repoPath);
+            populateUIFromRegistry();
+            updateSystemTray();
+            setupFileWatchers();
+            setupNotifyTimers();
+        }
+
+        //If file is currently and previously dirty, do nothing (was already dirty)
+        else if (curChangedFileStatus=="Dirty" && prevRepoStatus == "Dirty"){
+
+        }
+
+        else{
+            qDebug()<<"illegal state" << prevRepoStatus << curChangedFileStatus;
+        }
+    }
+}
+
+void MainWindow::periodicWatcherSlot(QString repoPath){  //QString is the repoPath
+    updateWatchDirectoryRegistry(repoPath);
+    populateUIFromRegistry();
+    updateSystemTray();
     setupFileWatchers();
     setupNotifyTimers();
-    updateSystemTray();
 }
 
 
@@ -217,11 +358,9 @@ void MainWindow::on_add_clicked(){
         QDir dir(ui->lineEdit->text());
         QStringList entryList = dir.entryList(QDir::NoDotAndDotDot|QDir::Dirs);
         for(int i = 0; i<entryList.count(); ++i){
-            qDebug() << "hi";
             QTreeWidgetItem * item = new QTreeWidgetItem();
             if (ui->treeWidget->findItems(dir.absolutePath() + "/" + entryList.at(i),0,0).count()==0){
                 item->setText(0,dir.absolutePath() + "/" + entryList.at(i));
-                //item->setText(1,repoStatusToText(gitRecursiveStatus(dir.absolutePath() + "/" + entryList.at(i))));
                 ui->treeWidget->addTopLevelItem(item);
             }
         }
@@ -229,7 +368,6 @@ void MainWindow::on_add_clicked(){
     else{
         QTreeWidgetItem * item = new QTreeWidgetItem();
         item->setText(0,ui->lineEdit->text());
-        item->setText(1,repoStatusToText(gitRecursiveStatus(ui->lineEdit->text())));
         ui->treeWidget->addTopLevelItem(item);
     }
     ui->lineEdit->clear();
@@ -263,18 +401,18 @@ void MainWindow::on_buttonBox_accepted(){
 
     //Options page
     settings.setValue("commit_reminder", ui->commit_reminder->checkState());
-    settings.setValue("commit_reminder_time", ui->commit_reminder_time->value()) ;
+    settings.setValue("commit_reminder_time", ui->commit_reminder_time->value()*60) ;
     settings.setValue("update_notification", ui->update_notification->checkState()) ;
     settings.setValue("update_notification_frequency", ui->update_notification_frequency->value());
 
     //Hide
     this->hide();
 
-    populateUI();
-    updateAllWatchDirectoryData();
+    updateAllWatchDirectoryRegistry();
+    populateUIFromRegistry();
+    updateSystemTray();
     setupFileWatchers();
     setupNotifyTimers();
-    updateSystemTray();
 }
 
 

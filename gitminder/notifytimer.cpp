@@ -1,19 +1,18 @@
 #include "notifytimer.h"
+#include <QDateTime>
+#include <QDebug>
 
-NotifyTimer::NotifyTimer(QString repoPath, QString timestamp)
-{
+NotifyTimer::NotifyTimer(QString repoPath, int becameDirtyTimestamp, int notificationDelay){
     this->timer = NULL;
     this->repoPath = repoPath;
-    QSettings settings;
 
-    int delayNotification = settings.value("commit_reminder_time").toInt()*60;
-    qDebug() << "notify in" << timestamp.toInt() + delayNotification - QDateTime::currentMSecsSinceEpoch ()/1000;
+    qDebug() << "notify in" << becameDirtyTimestamp + notificationDelay - QDateTime::currentMSecsSinceEpoch()/1000;
 
-    if (QDateTime::currentMSecsSinceEpoch ()/1000> timestamp.toInt() + delayNotification ){
+    if (QDateTime::currentMSecsSinceEpoch()/1000> becameDirtyTimestamp + notificationDelay ){
         startTimer(10);
     }
     else{
-        startTimer(timestamp.toInt() + delayNotification - QDateTime::currentMSecsSinceEpoch ()/1000);
+        startTimer(becameDirtyTimestamp + notificationDelay - QDateTime::currentMSecsSinceEpoch()/1000);
     }
 }
 

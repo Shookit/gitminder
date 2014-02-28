@@ -1,20 +1,14 @@
 #ifndef NOTIFYTIMER_H
 #define NOTIFYTIMER_H
 
-#include <QString>
-#include <QDateTime>
-#include <QDebug>
-#include <QSettings>
-#include <QSystemTrayIcon>
 #include <QTimer>
-
 
 class NotifyTimer : public QObject
 {
     Q_OBJECT
 
 public:
-    NotifyTimer(QString repoPath, QString timestamp);
+    NotifyTimer(QString repoPath, int becameDirtyTimestamp, int notificationDelay);
     ~NotifyTimer();
 
 private:
