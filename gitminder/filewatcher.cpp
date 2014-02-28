@@ -22,7 +22,7 @@ FileWatcher::FileWatcher(QString repoPath){
 //Functions
 QStringList FileWatcher::recursiveDirectorySearch(QString folder) {
     QStringList fileList;
-    QDirIterator dirIt(folder, QDir::NoDotAndDotDot|QDir::Files, QDirIterator::Subdirectories );
+    QDirIterator dirIt(folder, QDir::NoDotAndDotDot|QDir::Files|QDir::Dirs, QDirIterator::Subdirectories );
     while (dirIt.hasNext()) {
         dirIt.next();
         fileList.append(dirIt.filePath());
@@ -35,8 +35,8 @@ QStringList FileWatcher::recursiveDirectorySearch(QString folder) {
 //Slots
 void FileWatcher::fileChangedSlot(QString changedFile){
     //Called whenever the QFileSystemWatcher dirWatcher detects a changed file
-    emit fileChangedSignal(this->repoPath, changedFile);
     periodic_file_checker->start(10*60*1000);
+    emit fileChangedSignal(this->repoPath, changedFile);
 }
 
 
