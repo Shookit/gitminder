@@ -130,7 +130,7 @@ void MainWindow::populateUIFromRegistry(){
     QSettings settings;
     ui->treeWidget->clear();
     ui->commit_reminder->setChecked(settings.value("commit_reminder").toBool());
-    ui->commit_reminder_time->setValue(settings.value("commit_reminder_time").toInt());
+    ui->commit_reminder_time->setValue(settings.value("commit_reminder_time").toInt()/60);
 
     ui->update_notification->setChecked(settings.value("update_notification").toBool());
     ui->update_notification_frequency->setValue(settings.value("update_notification_frequency").toInt());
@@ -245,7 +245,10 @@ void MainWindow::trayNotifySlot(QString repoPath){
     QSettings settings;
     qDebug() << "message popped up";
     updateSystemTray();
-    this->trayIcon.showMessage(repoPath, "This repository hasn't been committed in over " + settings.value("commit_reminder_time").toString() + " minutes.");
+
+    QString numMins = QString::number(settings.value("commit_reminder_time").toInt()/60);
+
+    this->trayIcon.showMessage(repoPath, "This repository hasn't been committed in over " + numMins + " minutes.");
 }
 
 
