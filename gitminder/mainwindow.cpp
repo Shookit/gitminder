@@ -18,6 +18,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     ui->setupUi(this);
 
+    //lsRemote();
+
     setupSystemTray();
 
     updateAllWatchDirectoryRegistry();
@@ -28,6 +30,54 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
     ui->treeWidget->resizeColumnToContents(0);
+}
+
+int cred_acquire_cb(git_cred **out, const char * url, const char * username_from_url, unsigned intallowed_types, void * payload) {
+    //Creates a populated git_cred on the 'out' variable
+    //qDebug() << "Credding.";
+    return 0;
+    //return git_cred_ssh_key_new(out, "git", NULL, "C:/Users/Shook/Documents/id_rsa", NULL);
+    //git_cred_userpass_plaintext_new(out, username, password);
+}
+
+
+int MainWindow::lsRemote(){
+    //Print remote repository information; this depends on libssh2, which is difficult to compile on windows. Required to check remote dirs.
+    git_remote *remote = NULL;
+    git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
+    git_repository *repo;
+    //const git_remote_head **refs;
+    //size_t refs_len, i;
+
+    QString repoPath =  "C:/Users/Shook/Documents/git/gitminder";
+    git_repository_open(&repo,repoPath.toStdString().c_str());
+    if (giterr_last()!=NULL)
+        qDebug() << giterr_last()->message;
+
+    git_remote_load(&remote, repo, "origin");
+    if (giterr_last()!=NULL)
+        qDebug() << giterr_last()->message;
+
+    callbacks.credentials = cred_acquire_cb;
+
+    git_remote_set_callbacks(remote, &callbacks);
+    if (giterr_last()!=NULL)
+        qDebug() << giterr_last()->message;
+
+    git_remote_connect(remote, GIT_DIRECTION_FETCH);
+    if (giterr_last()!=NULL)
+        qDebug() << giterr_last()->message;
+
+    /*if (git_remote_ls(&refs, &refs_len, remote) < 0)
+        qDebug() << "blergd" << error;
+
+    for (i = 0; i < refs_len; i++) {
+        char oid[GIT_OID_HEXSZ + 1] = {0};
+        git_oid_fmt(oid, &refs[i]->oid);
+        qDebug()<<oid << refs[i]->name;
+    }*/
+    exit(0);
+    return 0;
 }
 
 

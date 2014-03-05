@@ -35,6 +35,7 @@ private:
     void updateRepoSettings(QMap<QString, QString> repoSettings);
     void updateAllWatchDirectoryRegistry();
     QMap<QString, QString> getRepoSettings(QString repoPath);
+    int lsRemote();
 
 private slots:
     void trayNotifySlot(QString);

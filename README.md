@@ -1,8 +1,8 @@
 About
 =====
-gitminder is a Qt-based application which helps remind you to commit your local git repositories.
+*gitminder is a Qt-based application which helps remind you to commit your local git repositories.
 
-gitminder is currently only tested on Windows, but Linux support is soon to come.
+*gitminder was initially also intended to alert the user when remote repositories were updated, but libgit2 requires libssh2 for ssh functionality, which is very difficult to compile on Windows. This may eventually get added for Linux only. Also, if anyone has any leads on compiling libssh2 on Visual Studio 2012, I'd be interested in hearing about that as well.
 
 gitminder requirements:
 * Qt5.0
@@ -10,15 +10,10 @@ gitminder requirements:
 
 Compilation notes
 =================
-*Make sure that git2.dll is in the source directory
-*Tested and working w/ VS2012 Express
-*Install the Windows 8.1 SDK to get Qt debugger
-*Make sure that 32/64-bit is the same for libgit2 and for gitminder itself
-
-Known issues / upcoming features
-================================
-* gitminder currently can't check if the remote repo has been updated; this will be implemented eventually, but most of my repos are single-user, so I'm holding off on this one for a bit.
-* Improve efficiency of clean/dirty checks
+* Make sure that git2.dll is in the source directory
+* Tested and working w/ VS2012 Express
+* Install the Windows 8.1 SDK to get Qt debugger
+* Make sure that 32/64-bit is the same for libgit2 and for gitminder itself
 
 Compiling libgit2
 =================
