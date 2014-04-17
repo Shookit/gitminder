@@ -8,6 +8,17 @@ gitminder requirements:
 * Qt5.0
 * libgit2
 
+Bugs
+====
+* The installer for windows currently doesn't properly move the imageformats and platforms folders to the install directory. For now, manually copy the two folders from installer/packages/com.shookit.gitminder/data to the install folder.
+* The exe file embedded inside the installer is also out of date. Copy the gitminder.exe from installer/packages/com.shookit.gitminder/data to the install folder.
+* The installer doesn't currently install vcredist_x86 properly.
+
+Upcoming features
+=================
+* Snooze button for reminders
+* Option of adding a repository as a "watch directory", where you don't have to manually add new repos to the git folder
+
 Compilation notes
 =================
 * Make sure that git2.dll is in the source directory
